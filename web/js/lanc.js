@@ -1,9 +1,10 @@
-import { h, GET, POST, campo, campoFavorecido, brl, hojeISO, folha, aviso, acao, limpar, vazio, mesISO, somarMes, intervaloMes, nomeMes, rotuloDia, FORMAS, dataLonga, confirmar, efetivar } from './util.js';
+import { h, GET, POST, api, campo, campoFavorecido, brl, hojeISO, folha, aviso, acao, limpar, vazio, mesISO, somarMes, intervaloMes, nomeMes, rotuloDia, FORMAS, dataLonga, confirmar, efetivar } from './util.js';
 import { formTransacao, excluirTransacao, estado } from './form.js';
 
 const vazioF = () => ({ modo: 'mes', de: '', ate: '', base: 'competencia', estado: '', tipo: '', conta: '', cartao: '', plastico: '', fatura: '',
   favorecido: null, categoria: '', busca: '' });
 const filtro = { mes: mesISO(), ...vazioF(), detalhe: false };
+const selecao = { ativa: false, ids: new Set() };   // modo de seleção para excluir vários lançamentos
 
 // parâmetros da API a partir do filtro (a mesma consulta alimenta a lista, os totais e o detalhamento)
 function parametros() {
@@ -48,6 +49,17 @@ export async function lancamentos(raiz, ctx) {
       h('div', { class: 'corpo' }, h('b', null, i.nome), h('small', null, `${i.itens} lançamento${i.itens > 1 ? 's' : ''}`)),
       h('b', { class: i.total < 0 ? 'neg' : 'pos' }, brl(i.total)))) : vazio('Nada para mostrar.'));
 
+  // barra de ações da seleção: marcar todas, limpar e excluir
+  const total = rows.length;
+  const info = h('b');
+  const barra = h('div', { class: 'imp-rodape barra-selecao' }, info,
+    h('button', { class: 'btn sec mini-btn', onclick: () => { for (const t of rows) selecao.ids.add(t.id); document.querySelectorAll('.sel-caixa').forEach(c => { c.checked = true; }); atualizarBarra(); } }, `Marcar todas (${total})`),
+    h('button', { class: 'btn sec mini-btn', onclick: () => { selecao.ids.clear(); document.querySelectorAll('.sel-caixa').forEach(c => { c.checked = false; }); atualizarBarra(); } }, 'Limpar'),
+    h('button', { class: 'btn perigo mini-btn', id: 'sel-excluir', onclick: () => excluirMarcadas(rows, recarregar) }, 'Excluir marcadas'));
+  function atualizarBarra() {
+    info.textContent = `${selecao.ids.size} marcada(s)`;
+    const b = barra.querySelector('#sel-excluir'); if (b) b.disabled = !selecao.ids.size;
+  }
   limpar(raiz).append(
     h('h1', null, 'Lançamentos'),
     filtro.modo === 'intervalo' ? null : h('div', { class: 'navmes' }, h('button', { class: 'icone', 'aria-label': 'Mês anterior', onclick: () => ir(-1) }, '‹'),
@@ -56,7 +68,8 @@ export async function lancamentos(raiz, ctx) {
       h('div', { class: 'segmentado' },
         h('button', { class: 'seg ' + (filtro.base === 'competencia' ? 'ativo' : ''), onclick: () => { filtro.base = 'competencia'; recarregar(); } }, 'Competência'),
         h('button', { class: 'seg ' + (filtro.base === 'caixa' ? 'ativo' : ''), onclick: () => { filtro.base = 'caixa'; recarregar(); } }, 'Caixa')),
-      h('button', { class: 'btn mini-btn ' + (temFiltro() ? '' : 'sec'), onclick: () => abrirFiltros(recarregar) }, `⚲ Filtros${chips.length ? ` (${chips.length})` : ''}`)),
+      h('button', { class: 'btn mini-btn ' + (temFiltro() ? '' : 'sec'), onclick: () => abrirFiltros(recarregar) }, `⚲ Filtros${chips.length ? ` (${chips.length})` : ''}`),
+      rows.length ? h('button', { class: 'btn mini-btn ' + (selecao.ativa ? '' : 'sec'), onclick: () => { selecao.ativa = !selecao.ativa; selecao.ids.clear(); recarregar(); } }, selecao.ativa ? '✕ Cancelar seleção' : '☑ Selecionar') : null),
     chips.length ? h('div', { class: 'chips' }, chips, h('button', { class: 'chip limpar', onclick: () => { Object.assign(filtro, vazioF()); recarregar(); } }, 'Limpar tudo')) : null,
     h('div', { class: 'tres cartao' },
       h('div', null, h('small', null, 'Receitas'), h('b', { class: 'pos' }, brl(rec))),
@@ -67,9 +80,10 @@ export async function lancamentos(raiz, ctx) {
       bloco('Por categoria', tot.por_categoria, (i) => { filtro.categoria = i.id; }),
       bloco('Por favorecido', tot.por_favorecido, (i) => { filtro.favorecido = { id: i.id, nome: i.nome }; })) : null,
     rows.length >= 1000 ? h('p', { class: 'dica' }, 'Mostrando os 1000 lançamentos mais recentes da seleção. Os totais acima consideram todos. Use filtros para refinar.') : null,
-    rows.length ? [...dias.entries()].map(([d, ts]) => h('section', null, h('h3', { class: 'dia' }, rotuloDia(d)), ts.map(t => linha(t, raiz, ctx)))) : vazio('Nenhum lançamento com esses filtros.'),
+    rows.length ? [...dias.entries()].map(([d, ts]) => h('section', null, h('h3', { class: 'dia' }, rotuloDia(d)), ts.map(t => linha(t, raiz, ctx, atualizarBarra)))) : vazio('Nenhum lançamento com esses filtros.'),
     h('button', { class: 'btn link', onclick: () => exportar() }, '⬇ Exportar para Excel'),
-    h('a', { class: 'fab', href: '#/novo', 'aria-label': 'Novo lançamento' }, '+'));
+    selecao.ativa ? barra : h('a', { class: 'fab', href: '#/novo', 'aria-label': 'Novo lançamento' }, '+'));
+  atualizarBarra();
 }
 
 // nomes para os chips (contas, cartões, plásticos e categorias já carregados uma vez)
@@ -161,12 +175,19 @@ async function abrirFiltros(aplicar) {
   });
 }
 
-function linha(t, raiz, ctx) {
+function linha(t, raiz, ctx, aoMarcar) {
   const onde = t.plastico_id ? `${t.cartao_nome} ·· ${t.plastico_final}` : t.conta_nome;
   const transf = t.tipo === 'transferencia';
   const titulo = transf ? `Transferência ${t.contraparte_nome ? (t.valor_centavos < 0 ? 'para ' : 'de ') + t.contraparte_nome : ''}`.trim()
     : (t.favorecido_nome || t.descricao || (t.tipo === 'pagamento_fatura' ? 'Pagamento de fatura' : 'Sem descrição'));
   const sub = [transf ? t.descricao : t.categoria_nome, onde, t.total_parcelas ? `${t.numero_parcela}/${t.total_parcelas}` : null, t.criado_por !== estado.eu.id ? `por ${t.criado_por_nome}` : null].filter(Boolean).join(' · ');
+  if (selecao.ativa) {
+    const caixa = h('input', { type: 'checkbox', class: 'sel-caixa', 'aria-label': `Marcar ${titulo}`, onchange: () => { if (caixa.checked) selecao.ids.add(t.id); else selecao.ids.delete(t.id); aoMarcar(); } });
+    caixa.checked = selecao.ids.has(t.id);
+    return h('label', { class: 'linha item sel-linha' }, caixa,
+      h('div', { class: 'corpo' }, h('b', null, titulo, t.estado === 'previsto' ? h('small', { class: 'selo aviso' }, 'previsto') : null), h('small', null, sub)),
+      h('b', { class: t.valor_centavos < 0 ? 'neg' : 'pos' }, brl(t.valor_centavos)));
+  }
   return h('button', { class: 'linha item', onclick: () => detalhe(t, () => lancamentos(raiz, ctx)) },
     h('div', { class: 'corpo' }, h('b', null, titulo, t.estado === 'previsto' ? h('small', { class: 'selo aviso' }, 'previsto') : null), h('small', null, sub)),
     h('b', { class: t.valor_centavos < 0 ? 'neg' : 'pos' }, brl(t.valor_centavos)));
@@ -212,5 +233,30 @@ function exportar() {
         window.location.href = `/api/exportar?de=${de.value}&ate=${ate.value}&base=${base.value}`;
         fechar();
       } }, 'Baixar planilha'));
+  });
+}
+
+function excluirMarcadas(rows, recarregar) {
+  const marcadas = rows.filter(t => selecao.ids.has(t.id));
+  if (!marcadas.length) return;
+  const parceladas = marcadas.filter(t => t.total_parcelas).length;
+  const recorrentes = marcadas.filter(t => t.recorrencia_id).length;
+  folha('Excluir lançamentos', (corpo, fechar) => {
+    const todo = h('input', { type: 'checkbox' });
+    todo.checked = false;
+    corpo.append(
+      h('p', null, `Você marcou ${marcadas.length} lançamento(s). A exclusão não pode ser desfeita.`),
+      parceladas ? h('label', { class: 'imp-futuras' }, todo, h('span', null, `${parceladas} marcado(s) são parcelas: excluir também as demais parcelas (inclusive as futuras) desses parcelamentos`)) : null,
+      recorrentes ? h('p', { class: 'dica' }, `${recorrentes} vieram de recorrência: aquele mês fica pulado e não será recriado.`) : null,
+      h('p', { class: 'dica' }, 'Lançamentos conciliados, ou que você não tem permissão para excluir, ficam de fora e são avisados no fim.'),
+      h('div', { class: 'linha-botoes' },
+        h('button', { class: 'btn sec', onclick: fechar }, 'Cancelar'),
+        h('button', { class: 'btn perigo', onclick: acao(async () => {
+          const r = await api('POST', '/api/transacoes/excluir-lote', { ids: marcadas.map(t => t.id), todo_parcelamento: todo.checked });
+          fechar();
+          selecao.ids.clear(); selecao.ativa = false;
+          aviso(r.falhas.length ? `${r.excluidos} excluído(s); ${r.falhas.length} não puderam ser excluídos (${[...new Set(r.falhas.map(f => f.motivo))].join('; ')})` : `${r.excluidos} lançamento(s) excluído(s)`, r.falhas.length > 0);
+          recarregar();
+        }) }, `Excluir ${marcadas.length}`)));
   });
 }

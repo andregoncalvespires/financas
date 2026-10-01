@@ -30,7 +30,7 @@ export function importarFatura(k, aoTerminar) {
 function conferir(corpo, fechar, k, p, aoTerminar) {
   const ehCartaoDono = k.dono_id;
   const linhas = p.linhas.map(l => ({
-    ...l, acao: l.acao_sugerida, incluir: l.acao_sugerida === 'criar', futuras: true,
+    ...l, acao: l.acao_sugerida, incluir: l.acao_sugerida === 'criar', futuras: !p.parcelas_suspeitas,
     usarFatura: l.acao_sugerida === 'atualizar',
   }));
   const contador = h('b');

@@ -259,3 +259,8 @@ class ImportarFaturaIn(BaseModel):
     cartao_id: UUID
     vencimento: date
     linhas: list[LinhaFaturaIn] = Field(max_length=600)
+
+
+class ExclusaoLoteIn(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=1500)
+    todo_parcelamento: bool = False      # também exclui as demais parcelas (inclusive futuras) dos parcelamentos marcados

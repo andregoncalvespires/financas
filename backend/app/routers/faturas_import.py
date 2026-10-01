@@ -209,13 +209,19 @@ def montar_previa(cur, cartao_id, venc: date, fech: date, bruto_ia: dict, linhas
             l["acao_sugerida"] = "atualizar" if l["casamento"]["diferenca_centavos"] or l["casamento"]["data"] != l["data"] else "conferir"
         else:
             l["acao_sugerida"] = "criar"
+    novas_parc = [l for l in linhas if l["tipo"] == "compra" and not l.get("casamento") and l["parcelas_total"] > 1 and l["parcela_atual"] == 1]
+    compras = [l for l in linhas if l["tipo"] == "compra"]
+    suspeitas = len(novas_parc) >= 8 and len(novas_parc) >= 0.2 * max(len(compras), 1)
+    if suspeitas:
+        alertas.append(f"{len(novas_parc)} compras novas vieram como parceladas 1/x ({round(100 * len(novas_parc) / len(compras))}% da fatura). Isso é incomum e pode ser erro de leitura: "
+                       "confira o PDF antes de criar parcelas futuras (a criação veio desmarcada).")
     soma = sum((-1 if l["eh_credito"] else 1) * l["valor_centavos"] for l in linhas if l["tipo"] in ("compra", "estorno_credito"))
     total = round(float(bruto_ia.get("total_fatura") or 0) * 100)
     return {
         "cartao": {"id": k["id"], "nome": k["nome"]},
         "fatura": {"vencimento": venc, "fechamento": fech, "id": fat["id"] if fat else None, "emissor": bruto_ia.get("emissor") or "",
                    "total_centavos": total, "soma_compras_centavos": soma, "diferenca_centavos": total - soma},
-        "linhas": linhas, "alertas": alertas,
+        "linhas": linhas, "alertas": alertas, "parcelas_suspeitas": suspeitas,
         "no_app_sem_par": [{"id": c["id"], "data": c["data_ref"], "descricao": c["descricao"] or c["favorecido_nome"], "valor_centavos": abs(c["valor_centavos"]), "eh_credito": c["valor_centavos"] > 0}
                            for c in cand if not c["casou"] and fat and c["fatura_id"] == fat["id"]],
     }

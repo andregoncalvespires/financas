@@ -174,3 +174,13 @@ def test_fatura_nova_com_parcelas_antigas_usa_o_vencimento_do_pdf(nova_pessoa):
     fats = {f["data_vencimento"]: f for f in a.get(f"/api/cartoes/{k['id']}/faturas").json()}
     assert fats["2026-10-04"]["total"] == -15000 and fats["2026-11-04"]["total"] == -10000      # parcela 12/12 na fatura seguinte
     assert all(t["data_caixa"] == "2026-10-04" for t in a.get("/api/transacoes", params={"cartao_id": k["id"], "estado": "confirmado", "limite": 50}).json())
+
+
+def test_aviso_de_parcelas_suspeitas(cenario):
+    """Muitas compras novas vindas como 1/x (leitura confundindo ícones com parcela) acendem o alerta."""
+    a, k = cenario["a"], cenario["k"]
+    linhas = [{"data": f"2026-09-{d:02d}", "descricao": f"LOJA {d}", "valor": 10.0 + d, "parcela_atual": 1, "parcelas_total": 3, "final_cartao": "1111", "tipo": "compra"} for d in range(1, 11)]
+    gemini.MOCK_FATURA = {**FATURA, "linhas": linhas}
+    r = a.post("/api/faturas/importar/ler", files={"arquivo": ("f.pdf", pdf_bytes(), "application/pdf")}, data={"cartao_id": k["id"], "senha": ""}).json()
+    assert r["parcelas_suspeitas"] is True and any("parceladas 1/x" in x for x in r["alertas"])
+    assert ler(a, k).json()["parcelas_suspeitas"] is False        # a fatura normal do cenário não dispara o alerta

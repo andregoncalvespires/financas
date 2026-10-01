@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ..deps import Usuario, get_db, usuario_atual
-from ..schemas import GerarRecorrenciasIn, RecorrenciaIn, RecorrenciaPatch, TransacaoIn, TransacaoPatch, TransferenciaIn
+from ..schemas import ExclusaoLoteIn, GerarRecorrenciasIn, RecorrenciaIn, RecorrenciaPatch, TransacaoIn, TransacaoPatch, TransferenciaIn
 from ..servicos import (add_months, atualizar, criar_transacoes, dono_do_alvo, mes_intervalo,
                         resolver_favorecido_categoria)
 
@@ -213,6 +213,28 @@ def excluir(tid: str, todo_parcelamento: bool = False, cur=Depends(get_db)):
     if not n:
         raise HTTPException(403, "sem permissão para excluir este lançamento")
     return {"excluidos": n}
+
+
+@router.post("/transacoes/excluir-lote")
+def excluir_lote(body: ExclusaoLoteIn, cur=Depends(get_db)):
+    """Exclui vários lançamentos de uma vez, com as mesmas regras de um por um. O que não puder ser excluído (permissão, conciliado, transferência
+    de que você só vê um lado) é devolvido em `falhas`; o resto é excluído."""
+    excluidos, falhas, ja_saiu = 0, [], set()
+    for tid in dict.fromkeys(str(i) for i in body.ids):
+        if tid in ja_saiu:
+            continue                                      # já saiu junto com outra parcela do mesmo parcelamento
+        grupo: set = set()
+        try:
+            with cur.connection.transaction():           # savepoint: uma falha não desfaz as exclusões anteriores
+                if body.todo_parcelamento:
+                    irmas = cur.execute("SELECT id FROM transacao WHERE parcelamento_id = (SELECT parcelamento_id FROM transacao WHERE id = %s)", (tid,)).fetchall()
+                    grupo = {str(r["id"]) for r in irmas}
+                    ja_saiu.update(grupo)
+                excluidos += excluir(tid, body.todo_parcelamento, cur)["excluidos"]
+        except HTTPException as e:
+            ja_saiu.difference_update(grupo)
+            falhas.append({"id": tid, "motivo": e.detail})
+    return {"excluidos": excluidos, "falhas": falhas}
 
 
 @router.post("/transferencias", status_code=201)

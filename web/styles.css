@@ -81,7 +81,6 @@ details.cartao[open] > summary::after { content: '▴'; }
 .btn { display: inline-flex; justify-content: center; align-items: center; gap: 6px; width: 100%; border: 0; border-radius: 12px; padding: 13px 16px; background: var(--marca); color: var(--marca-tx);
   font: inherit; font-weight: 650; cursor: pointer; margin: 6px 0; min-height: 46px; }
 .btn.sec { background: var(--surf); color: var(--marca); border: 1px solid var(--borda); }
-.btn.perigo { background: var(--neg); color: #fff; }
 .btn.link { background: none; color: var(--marca); width: auto; padding: 6px 8px; min-height: 0; font-weight: 600; font-size: .9rem; }
 .btn.link.perigo { color: var(--neg); background: none; }
 .btn:disabled { opacity: .55; cursor: default; }
@@ -214,3 +213,8 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .cartao > small.dica { display: block; }
 .imp-futuras { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; color: var(--suave); }
 .imp-futuras input { margin-top: 3px; }
+.sel-linha { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.sel-linha input { width: 20px; height: 20px; flex: none; }
+.barra-selecao { z-index: 20; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--borda); }
+.barra-selecao .btn { width: auto; }
+.barra-selecao .btn.perigo { background: var(--neg); color: #fff; }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.4 — 2026-10-01
+- **Importar fatura: leitura corrigida.** A IA estava confundindo os ícones da coluna "Compra" da fatura (pagamento por aproximação e "@" de compra online) com parcelas, marcando compras à vista como "1/3" ou "1/2" e criando parcelas futuras indevidas. O pedido à IA agora diz que só vale a parcela escrita na coluna Parcela. Além disso, se muitas compras novas de uma fatura vierem como parceladas 1/x, a conferência mostra um alerta e **deixa desmarcada** a criação das parcelas futuras.
+- **Selecionar vários lançamentos e excluir.** Em Lançamentos, o botão **Selecionar** liga a seleção: marque linhas uma a uma, use **Marcar todas** (vale para tudo o que o filtro mostra) e **Excluir marcadas**. Para parcelas há a opção de excluir também as demais parcelas (inclusive as futuras) dos parcelamentos marcados. O que não puder ser excluído (conciliado ou sem permissão) fica de fora e é avisado; o resto é excluído. Dica para limpar uma importação errada: filtre por cartão e por "Só previstos" e marque tudo.
+
 ## 1.13.3 — 2026-10-01
 - **Corrige a importação de fatura nova com parcelas antigas.** Quando a fatura ainda não existia no app, o destino era escolhido pela data da compra mais antiga da lista (por exemplo, uma parcela de 2025) e a gravação falhava com "o vencimento da fatura não bate com o do app". Agora o destino vem sempre do **vencimento do PDF**.
 

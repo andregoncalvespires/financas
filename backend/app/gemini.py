@@ -161,7 +161,7 @@ linhas: UMA entrada para cada lançamento da seção de detalhamento (despesas, 
 - descricao: o texto do estabelecimento exatamente como impresso (ex.: "SUPERMERCADOS BH"), sem a data e sem o valor.
 - valor: valor em reais, positivo para compras; NEGATIVO para créditos, estornos e pagamentos recebidos.
 - valor_usd: valor em dólar quando houver, senão 0.
-- parcela_atual / parcelas_total: "03/10" => 3 e 10. Sem parcelamento: 1 e 1.
+- parcela_atual / parcelas_total: SOMENTE quando existir um texto "NN/NN" (ex.: "03/10") na coluna Parcela daquela linha. Ícones da coluna "Compra" (ondas de pagamento por aproximação, "@" de compra online, etc.) NÃO são parcelas. Coluna Parcela vazia => 1 e 1. Em caso de dúvida, use 1 e 1.
 - final_cartao: 4 últimos dígitos do cartão da seção em que o lançamento aparece (o cabeçalho de cada seção traz o número mascarado). Se não houver, string vazia.
 - tipo: "compra" para compras e parcelas; "iof_exterior" para a linha de IOF de compra no exterior (que fica logo abaixo da compra em moeda estrangeira; NÃO some o valor na compra, mantenha como linha separada logo depois dela); "estorno_credito" para estornos/créditos; "pagamento" para pagamentos da fatura anterior; "encargo" para juros, multa, anuidade e tarifas; "outro" para o resto.
 - categoria_codigo: para compras, escolha UM código da lista de categorias abaixo, o que melhor descreve o estabelecimento (ex.: supermercado, posto de combustível, farmácia, restaurante, aplicativo de transporte, assinatura de streaming). Para o que não for compra, ou se não souber, deixe string vazia.
