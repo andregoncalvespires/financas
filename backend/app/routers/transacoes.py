@@ -30,19 +30,51 @@ LEFT JOIN usuario u ON u.id = t.criado_por
 """
 
 
-@router.get("/transacoes")
-def listar(de: date | None = None, ate: date | None = None, base: str = Query("competencia", pattern="^(competencia|caixa)$"),
-           conta_id: str | None = None, plastico_id: str | None = None, fatura_id: str | None = None,
-           estado: str | None = None, tipo: str | None = None, limite: int = Query(200, le=1000), cur=Depends(get_db)):
+def _filtros(de, ate, base, conta_id, plastico_id, cartao_id, fatura_id, estado, tipo, favorecido_id, categoria_id, busca):
+    """Monta o WHERE comum à listagem e ao resumo (aliases: t transacao, f favorecido, cat categoria)."""
     col = "t.data_competencia" if base == "competencia" else "t.data_caixa"
     where, params = [], []
     for cond, val in ((f"{col} >= %s", de), (f"{col} <= %s", ate), ("t.conta_id = %s", conta_id), ("t.plastico_id = %s", plastico_id),
-                      ("t.fatura_id = %s", fatura_id), ("t.estado = %s", estado), ("t.tipo = %s", tipo)):
+                      ("t.plastico_id IN (SELECT id FROM plastico WHERE cartao_id = %s)", cartao_id),
+                      ("t.fatura_id = %s", fatura_id), ("t.estado = %s", estado), ("t.tipo = %s", tipo), ("t.favorecido_id = %s", favorecido_id)):
         if val is not None:
             where.append(cond)
             params.append(val)
-    sql = SQL_TX + (" WHERE " + " AND ".join(where) if where else "") + f" ORDER BY {col} DESC, t.criado_em DESC LIMIT %s"
-    return cur.execute(sql, (*params, limite)).fetchall()
+    if categoria_id is not None:      # escolher uma categoria "pai" inclui as subcategorias
+        where.append("t.categoria_id IN (SELECT id FROM categoria WHERE id = %s OR pai_id = %s)")
+        params += [categoria_id, categoria_id]
+    if busca and busca.strip():
+        like = "%" + busca.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        where.append("(t.descricao ILIKE %s OR f.nome ILIKE %s OR cat.nome ILIKE %s)")
+        params += [like, like, like]
+    return col, (" WHERE " + " AND ".join(where) if where else ""), params
+
+
+@router.get("/transacoes")
+def listar(de: date | None = None, ate: date | None = None, base: str = Query("competencia", pattern="^(competencia|caixa)$"),
+           conta_id: str | None = None, plastico_id: str | None = None, cartao_id: str | None = None, fatura_id: str | None = None,
+           estado: str | None = None, tipo: str | None = None, favorecido_id: str | None = None, categoria_id: str | None = None,
+           busca: str | None = Query(None, max_length=100), limite: int = Query(200, le=1000), cur=Depends(get_db)):
+    col, where, params = _filtros(de, ate, base, conta_id, plastico_id, cartao_id, fatura_id, estado, tipo, favorecido_id, categoria_id, busca)
+    return cur.execute(SQL_TX + where + f" ORDER BY {col} DESC, t.criado_em DESC LIMIT %s", (*params, limite)).fetchall()
+
+
+@router.get("/transacoes/resumo")
+def resumo_filtrado(de: date | None = None, ate: date | None = None, base: str = Query("competencia", pattern="^(competencia|caixa)$"),
+                    conta_id: str | None = None, plastico_id: str | None = None, cartao_id: str | None = None, fatura_id: str | None = None,
+                    estado: str | None = None, tipo: str | None = None, favorecido_id: str | None = None, categoria_id: str | None = None,
+                    busca: str | None = Query(None, max_length=100), cur=Depends(get_db)):
+    """Totais da seleção (mesmos filtros da listagem), sem o limite de linhas, com a quebra por categoria e por favorecido."""
+    _, where, params = _filtros(de, ate, base, conta_id, plastico_id, cartao_id, fatura_id, estado, tipo, favorecido_id, categoria_id, busca)
+    de_ = ("FROM transacao t LEFT JOIN favorecido f ON f.id = t.favorecido_id LEFT JOIN categoria cat ON cat.id = t.categoria_id"
+           + where + (" AND" if where else " WHERE") + " t.tipo IN ('despesa','receita')")
+    tot = cur.execute("SELECT COALESCE(SUM(t.valor_centavos) FILTER (WHERE t.tipo = 'receita'), 0)::bigint AS receitas, "
+                      "COALESCE(SUM(t.valor_centavos) FILTER (WHERE t.tipo = 'despesa'), 0)::bigint AS despesas, COUNT(*)::int AS quantidade " + de_, params).fetchone()
+    cats = cur.execute("SELECT t.categoria_id AS id, COALESCE(cat.nome, 'Sem categoria') AS nome, SUM(t.valor_centavos)::bigint AS total, COUNT(*)::int AS itens "
+                       + de_ + " GROUP BY t.categoria_id, cat.nome ORDER BY ABS(SUM(t.valor_centavos)) DESC LIMIT 50", params).fetchall()
+    favs = cur.execute("SELECT t.favorecido_id AS id, COALESCE(f.nome, 'Sem favorecido') AS nome, SUM(t.valor_centavos)::bigint AS total, COUNT(*)::int AS itens "
+                       + de_ + " GROUP BY t.favorecido_id, f.nome ORDER BY ABS(SUM(t.valor_centavos)) DESC LIMIT 50", params).fetchall()
+    return {**tot, "por_categoria": cats, "por_favorecido": favs}
 
 
 @router.post("/transacoes", status_code=201)
