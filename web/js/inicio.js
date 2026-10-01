@@ -1,4 +1,4 @@
-import { h, GET, POST, PATCH, brl, aviso, acao, mesISO, somarMes, nomeMes, dataCurta, FORMAS, vazio, limpar, efetivar } from './util.js';
+import { h, GET, POST, PATCH, brl, aviso, acao, mesISO, somarMes, nomeMes, dataCurta, rotuloDia, FORMAS, vazio, limpar, efetivar } from './util.js';
 import { estado } from './form.js';
 import { pagarFatura } from './cartoes.js';
 
@@ -96,21 +96,54 @@ function resumoMes(r) {
         h('b', null, brl(-g.total))))) : vazio('Sem lançamentos neste mês (competência).'));
 }
 
+// estado de recolhimento dos grupos de "Próximos eventos" (mantido enquanto o app está aberto)
+const gruposAbertos = new Map();
+
 function blocoEventos(l, recarregar) {
   const dias_ = (iso) => Math.round((new Date(iso + 'T00:00:00') - new Date(l.hoje + 'T00:00:00')) / 864e5);
   const quando = (i) => { const d = dias_(String(i.data).slice(0, 10)); return d < 0 ? `${-d}d atrás` : d === 0 ? 'hoje' : d === 1 ? 'amanhã' : dataCurta(i.data); };
-  return h('section', null,
+
+  const linha = (i, mostrarQuando) => {
+    const fat = i.tipo === 'fatura', transf = i.tipo === 'transferencia';
+    const titulo = fat ? `Fatura ${i.cartao_nome}` : transf ? 'Transferência' : (i.favorecido_nome || i.descricao || i.categoria_nome || 'Previsto');
+    const sub = transf ? [i.origem_nome && i.destino_nome ? `${i.origem_nome} → ${i.destino_nome}` : i.conta_nome, i.descricao].filter(Boolean).join(' · ') : fat ? `vence ${dataCurta(i.data)} · ${i.fechada ? 'fechada' : 'ainda aberta'}${i.alem_periodo ? ' · após o período' : ''}` : [i.conta_nome, i.categoria_nome].filter(Boolean).join(' · ');
+    return h('div', { class: 'item lembrete ' + (i.atrasado ? 'atrasado ' : '') + (i.alem_periodo ? 'alem' : '') },
+      mostrarQuando ? h('div', { class: 'quando' }, quando(i)) : null,
+      h('div', { class: 'corpo' }, h('b', null, titulo), h('small', null, sub)),
+      h('b', { class: transf ? '' : i.valor_centavos < 0 ? 'neg' : 'pos' }, brl(i.valor_centavos)),
+      fat ? h('button', { class: 'btn mini-btn', onclick: () => pagarFatura({ nome: i.cartao_nome, conta_pagamento_id: i.conta_pagamento_id }, i, recarregar) }, 'Pagar')
+          : h('button', { class: 'btn mini-btn sec', onclick: acao(async () => { const r = await efetivar({ id: i.id, titulo, valor_centavos: i.valor_centavos, prevista: i.data, rotulo: transf ? 'Fiz' : i.valor_centavos < 0 ? 'Paguei' : 'Recebi' }); if (!r) return; aviso(r === 'ajustado' ? 'Previsão ajustada' : transf ? 'Transferência confirmada' : 'Confirmado'); recarregar(); }) }, transf ? 'Fiz' : i.valor_centavos < 0 ? 'Paguei' : 'Recebi'));
+  };
+
+  // grupos: todos os atrasados juntos, depois um por data
+  const grupos = [];
+  for (const i of l.itens) {
+    const d = String(i.data).slice(0, 10);
+    const chave = d < l.hoje ? 'atrasados' : d;
+    let g = grupos.find(x => x.chave === chave);
+    if (!g) { g = { chave, itens: [] }; grupos.push(g); }
+    g.itens.push(i);
+  }
+  const rotulo = (g) => g.chave === 'atrasados' ? 'Atrasados' : g.chave === l.hoje ? 'Hoje' : dias_(g.chave) === 1 ? `Amanhã · ${dataCurta(g.chave)}` : rotuloDia(g.chave);
+  // padrão: atrasados e hoje abertos; se não houver nenhum dos dois, abre só o primeiro grupo
+  const abertoPadrao = (g, n) => g.chave === 'atrasados' || g.chave === l.hoje || (n === 0 && !grupos.some(x => x.chave === 'atrasados' || x.chave === l.hoje));
+  const aberto = (g, n) => gruposAbertos.has(g.chave) ? gruposAbertos.get(g.chave) : abertoPadrao(g, n);
+  const redesenhar = () => { const novo = blocoEventos(l, recarregar); secao.replaceWith(novo); };
+  const definirTodos = (v) => { grupos.forEach(g => gruposAbertos.set(g.chave, v)); redesenhar(); };
+  const todosAbertos = grupos.every((g, n) => aberto(g, n));
+
+  const secao = h('section', null,
     h('h2', null, 'Próximos eventos'),
     h('small', { class: 'dica' }, `Até ${dataCurta(l.ate)} · a pagar ${brl(-l.saidas)}${l.entradas ? ` · a receber ${brl(l.entradas)}` : ''}`),
-    l.itens.length ? l.itens.map(i => {
-      const fat = i.tipo === 'fatura', transf = i.tipo === 'transferencia';
-      const titulo = fat ? `Fatura ${i.cartao_nome}` : transf ? 'Transferência' : (i.favorecido_nome || i.descricao || i.categoria_nome || 'Previsto');
-      const sub = transf ? [i.origem_nome && i.destino_nome ? `${i.origem_nome} → ${i.destino_nome}` : i.conta_nome, i.descricao].filter(Boolean).join(' · ') : fat ? `vence ${dataCurta(i.data)} · ${i.fechada ? 'fechada' : 'ainda aberta'}${i.alem_periodo ? ' · após o período' : ''}` : [i.conta_nome, i.categoria_nome].filter(Boolean).join(' · ');
-      return h('div', { class: 'item lembrete ' + (i.atrasado ? 'atrasado ' : '') + (i.alem_periodo ? 'alem' : '') },
-        h('div', { class: 'quando' }, quando(i)),
-        h('div', { class: 'corpo' }, h('b', null, titulo), h('small', null, sub)),
-        h('b', { class: transf ? '' : i.valor_centavos < 0 ? 'neg' : 'pos' }, brl(i.valor_centavos)),
-        fat ? h('button', { class: 'btn mini-btn', onclick: () => pagarFatura({ nome: i.cartao_nome, conta_pagamento_id: i.conta_pagamento_id }, i, recarregar) }, 'Pagar')
-            : h('button', { class: 'btn mini-btn sec', onclick: acao(async () => { const r = await efetivar({ id: i.id, titulo, valor_centavos: i.valor_centavos, prevista: i.data, rotulo: transf ? 'Fiz' : i.valor_centavos < 0 ? 'Paguei' : 'Recebi' }); if (!r) return; aviso(r === 'ajustado' ? 'Previsão ajustada' : transf ? 'Transferência confirmada' : 'Confirmado'); recarregar(); }) }, transf ? 'Fiz' : i.valor_centavos < 0 ? 'Paguei' : 'Recebi'));
+    grupos.length > 1 ? h('button', { class: 'btn link', onclick: () => definirTodos(!todosAbertos) }, todosAbertos ? '▲ Recolher tudo' : '▼ Expandir tudo') : null,
+    grupos.length ? grupos.map((g, n) => {
+      const abre = aberto(g, n);
+      const saldo = g.itens.filter(i => i.tipo !== 'transferencia').reduce((a, i) => a + i.valor_centavos, 0);
+      return h('div', { class: 'grupo-eventos' },
+        h('button', { class: 'grupo-topo' + (g.chave === 'atrasados' ? ' atrasado' : ''), 'aria-expanded': String(abre), onclick: () => { gruposAbertos.set(g.chave, !abre); redesenhar(); } },
+          h('span', { class: 'seta' }, abre ? '▾' : '▸'), h('b', null, rotulo(g)), h('small', null, `${g.itens.length} evento${g.itens.length > 1 ? 's' : ''}`),
+          h('span', { class: 'grupo-total ' + (saldo < 0 ? 'neg' : saldo > 0 ? 'pos' : '') }, saldo ? brl(saldo) : '')),
+        abre ? g.itens.map(i => linha(i, g.chave === 'atrasados')) : null);
     }) : vazio(`Nada pendente nos próximos ${dias} dias.`));
+  return secao;
 }

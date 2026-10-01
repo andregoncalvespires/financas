@@ -188,3 +188,12 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .sugestao { padding: 10px 12px; cursor: pointer; font-size: .95rem; }
 .sugestao + .sugestao { border-top: 1px solid var(--borda); }
 .sugestao:hover, .sugestao.ativo { background: var(--borda); }
+
+/* próximos eventos agrupados por data */
+.grupo-eventos { margin-top: 8px; }
+.grupo-topo { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--borda); padding: 8px 2px; font: inherit; color: var(--texto); cursor: pointer; text-align: left; }
+.grupo-topo .seta { width: 14px; color: var(--suave); }
+.grupo-topo small { color: var(--suave); }
+.grupo-topo .grupo-total { margin-left: auto; font-weight: 650; font-size: .9rem; }
+.grupo-topo.atrasado b { color: var(--neg); }
+.grupo-eventos .lembrete { margin-top: 6px; }
