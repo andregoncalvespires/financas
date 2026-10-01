@@ -222,19 +222,23 @@ def aplicar(body: ImportarFaturaIn, cur=Depends(get_db), usuario: Usuario = Depe
     principal = next((i for i, p in pls.items() if p["principal"]), next(iter(pls), None))
     if not principal:
         raise HTTPException(422, "esta conta de cartão não tem cartão cadastrado")
-    fat = cur.execute("SELECT id, status, data_vencimento FROM fatura WHERE cartao_id = %s AND data_vencimento = %s", (cartao, body.vencimento)).fetchone()
+    fat = cur.execute("SELECT id, status, data_vencimento, data_fechamento FROM fatura WHERE cartao_id = %s AND data_vencimento = %s", (cartao, body.vencimento)).fetchone()
     if not fat and any(l.acao == "criar" for l in body.linhas):
         # a fatura ainda não existe no app: cria pelo fechamento mais recente e confere se bate com o vencimento do PDF
         ref = min((l.data for l in body.linhas if l.acao == "criar"), default=body.vencimento)
         f = cur.execute("SELECT * FROM fatura_para_compra(%s, %s)", (principal, ref)).fetchone()
-        fat = cur.execute("SELECT id, status, data_vencimento FROM fatura WHERE id = %s", (f["fatura_id"],)).fetchone()
+        fat = cur.execute("SELECT id, status, data_vencimento, data_fechamento FROM fatura WHERE id = %s", (f["fatura_id"],)).fetchone()
         if fat["data_vencimento"] != body.vencimento:
             raise HTTPException(422, f"o vencimento da fatura ({body.vencimento:%d/%m/%Y}) não bate com o do app ({fat['data_vencimento']:%d/%m/%Y}): confira o fechamento e o vencimento do cartão")
     if fat and fat["status"] == "paga":
         raise HTTPException(409, "esta fatura já está paga no app; reabra-a antes de importar")
-    criadas = atualizadas = 0
+    criadas = atualizadas = futuras = 0
     for l in body.linhas:
-        if l.acao in ("conferir", "ignorar"):
+        if l.acao == "ignorar":
+            continue
+        if l.acao == "conferir":
+            # a fatura comprova a cobrança: parcela que estava prevista passa a confirmada
+            cur.execute("""UPDATE transacao SET estado = 'confirmado' WHERE id = %s AND estado = 'previsto' AND plastico_id IN (SELECT id FROM plastico WHERE cartao_id = %s)""", (l.transacao_id, cartao))
             continue
         if l.acao == "atualizar":
             t = cur.execute("""SELECT t.id, t.valor_centavos, t.numero_parcela FROM transacao t JOIN plastico p ON p.id = t.plastico_id
@@ -242,7 +246,7 @@ def aplicar(body: ImportarFaturaIn, cur=Depends(get_db), usuario: Usuario = Depe
             if not t:
                 raise HTTPException(404, "lançamento a atualizar não encontrado neste cartão")
             novo = l.valor_centavos * (1 if t["valor_centavos"] > 0 else -1)
-            cur.execute("UPDATE transacao SET valor_centavos = %s, data_compra = %s, data_competencia = CASE WHEN numero_parcela IS NULL THEN %s ELSE data_competencia END WHERE id = %s",
+            cur.execute("UPDATE transacao SET valor_centavos = %s, data_compra = %s, estado = CASE WHEN estado = 'previsto' THEN 'confirmado' ELSE estado END, data_competencia = CASE WHEN numero_parcela IS NULL THEN %s ELSE data_competencia END WHERE id = %s",
                         (novo, l.data, l.data, t["id"]))
             atualizadas += 1
             continue
@@ -253,12 +257,32 @@ def aplicar(body: ImportarFaturaIn, cur=Depends(get_db), usuario: Usuario = Depe
         fav, cat = resolver_favorecido_categoria(cur, dono, l.favorecido_id, l.favorecido_nome, l.categoria_id)
         n, k = l.parcelas_total, min(l.parcela_atual, l.parcelas_total)
         comp = add_months(l.data, k - 1) if n > 1 else l.data
-        cur.execute(
-            """INSERT INTO transacao(criado_por, tipo, estado, valor_centavos, data_competencia, data_caixa, data_compra, plastico_id, fatura_id,
-                 forma_pagamento, categoria_id, favorecido_id, descricao, parcelamento_id, numero_parcela, total_parcelas, origem)
-               VALUES (%s,%s,'confirmado',%s,%s,%s,%s,%s,%s,'cartao',%s,%s,%s,%s,%s,%s,'fatura')""",
-            (usuario.id, "receita" if l.eh_credito else "despesa", l.valor_centavos * (1 if l.eh_credito else -1), comp, fat["data_vencimento"], l.data,
-             plastico, fat["id"], cat, fav, l.descricao, uuid4() if n > 1 else None, k if n > 1 else None, n if n > 1 else None))
+        sinal = 1 if l.eh_credito else -1
+        parc_id = uuid4() if n > 1 else None
+        # parcelas desta compra que já existem (lançadas à mão ou numa importação anterior): não duplicar
+        irmas = {}
+        if n > 1 and l.criar_futuras and not l.eh_credito:
+            for r in cur.execute("""SELECT t.numero_parcela, t.parcelamento_id FROM transacao t JOIN plastico p ON p.id = t.plastico_id
+                                   WHERE p.cartao_id = %s AND t.total_parcelas = %s AND t.data_compra = %s AND abs(t.valor_centavos) = %s AND t.numero_parcela IS NOT NULL""",
+                                 (cartao, n, l.data, l.valor_centavos)).fetchall():
+                irmas[r["numero_parcela"]] = r["parcelamento_id"]
+            if irmas:
+                parc_id = next(iter(irmas.values()))
+        def inserir(num, comp, fatura_id, venc, estado):
+            cur.execute(
+                """INSERT INTO transacao(criado_por, tipo, estado, valor_centavos, data_competencia, data_caixa, data_compra, plastico_id, fatura_id,
+                     forma_pagamento, categoria_id, favorecido_id, descricao, parcelamento_id, numero_parcela, total_parcelas, origem)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'cartao',%s,%s,%s,%s,%s,%s,'fatura')""",
+                (usuario.id, "receita" if l.eh_credito else "despesa", estado, l.valor_centavos * sinal, comp, venc, l.data, plastico,
+                 fatura_id, cat, fav, l.descricao, parc_id, num if n > 1 else None, n if n > 1 else None))
+        inserir(k, comp, fat["id"], fat["data_vencimento"], "confirmado")
+        if n > 1 and l.criar_futuras and not l.eh_credito:
+            for j in range(k + 1, n + 1):
+                if j in irmas:
+                    continue
+                f = cur.execute("SELECT * FROM fatura_para_compra(%s, %s)", (plastico, add_months(fat["data_fechamento"], j - k))).fetchone()
+                inserir(j, add_months(l.data, j - 1), f["fatura_id"], f["data_vencimento"], "previsto")
+                futuras += 1
         aprender_categoria(cur, fav, cat)
         criadas += 1
-    return {"criadas": criadas, "atualizadas": atualizadas, "fatura_id": fat["id"] if fat else None}
+    return {"criadas": criadas, "atualizadas": atualizadas, "futuras": futuras, "fatura_id": fat["id"] if fat else None}

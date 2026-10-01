@@ -252,6 +252,7 @@ class LinhaFaturaIn(BaseModel):
     eh_credito: bool = False
     parcela_atual: int = Field(default=1, ge=1, le=60)
     parcelas_total: int = Field(default=1, ge=1, le=60)
+    criar_futuras: bool = False        # cria também as parcelas seguintes, como previstas nas faturas dos meses seguintes
 
 
 class ImportarFaturaIn(BaseModel):

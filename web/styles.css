@@ -212,3 +212,5 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .pos { color: var(--pos); } .neg { color: var(--neg); }
 .imp-linha .selo { justify-self: start; }
 .cartao > small.dica { display: block; }
+.imp-futuras { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; color: var(--suave); }
+.imp-futuras input { margin-top: 3px; }

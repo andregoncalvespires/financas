@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.13.1 — 2026-10-01
+- **Importar fatura: parcelas futuras.** Nas compras parceladas novas da fatura (ex.: 3/10), a conferência traz a opção, marcada por padrão, de **criar também as parcelas seguintes como previstas** nas faturas dos meses certos (ex.: "7 × R$ 100,00, até 05/2027"). A fatura que está sendo importada não muda de total; o "Disponível" e as faturas futuras passam a enxergar o compromisso. Parcelas que já existem (lançadas à mão ou numa importação anterior) não são duplicadas. Ao importar a fatura seguinte, a parcela prevista que casar passa a **confirmada** (e, se o valor mudar, a diferença aparece na conferência).
+
 ## 1.13.0 — 2026-10-01
 - **Importar fatura do cartão (PDF):** em Cartões, na conta de cartão, o botão **Importar fatura (PDF)** lê a fatura com a mesma IA dos comprovantes (é preciso ter a chave do Gemini configurada). Se o PDF tiver senha, informe-a na hora: ela abre o arquivo só em memória e não é guardada. Antes de gravar, o app mostra uma tela de conferência: o que já estava lançado (e, quando o valor ou a data diferem, a **diferença**, para você escolher entre usar o da fatura ou manter o do app), o que é novo (com favorecido e categoria sugeridos, editáveis), o que não é compra (pagamentos, encargos) e o que está no app mas não apareceu na fatura. Também compara o total da fatura com a soma das compras lidas. Cada cartão (titular e adicionais, pelo final) recebe suas compras; parcelas entram como a parcela da fatura (ex.: 3/10) e o IOF de compras no exterior é somado à compra. Só o dono da conta de cartão importa, e importar de novo a mesma fatura não duplica nada.
 

@@ -96,11 +96,11 @@ def test_aplicar_cria_atualiza_e_nao_duplica(cenario):
     for l in p["linhas"]:
         o = {"acao": l["acao_sugerida"], "transacao_id": (l.get("casamento") or {}).get("transacao_id"), "data": l["data"], "descricao": l["descricao"],
              "favorecido_nome": l["favorecido_nome"], "favorecido_id": l["favorecido_id"], "categoria_id": l["categoria_id"], "plastico_id": l["plastico_id"],
-             "valor_centavos": l["valor_centavos"], "eh_credito": l["eh_credito"], "parcela_atual": l["parcela_atual"], "parcelas_total": l["parcelas_total"]}
+             "valor_centavos": l["valor_centavos"], "eh_credito": l["eh_credito"], "parcela_atual": l["parcela_atual"], "parcelas_total": l["parcelas_total"], "criar_futuras": l["parcelas_total"] > l["parcela_atual"]}
         linhas.append(o)
     r = a.post("/api/faturas/importar/aplicar", json={"cartao_id": k["id"], "vencimento": "2026-10-04", "linhas": linhas})
     assert r.status_code == 200, r.text
-    assert r.json() == {"criadas": 5, "atualizadas": 1, "fatura_id": p["fatura"]["id"] or r.json()["fatura_id"]}
+    assert r.json()["criadas"] == 5 and r.json()["atualizadas"] == 1 and r.json()["futuras"] == 7
     por_desc = {t["descricao"] or t["favorecido_nome"]: t for t in a.get("/api/transacoes", params={"cartao_id": k["id"], "limite": 100}).json()}
     pad = cenario["ex"]["padaria"]
     atual = next(t for t in a.get("/api/transacoes", params={"cartao_id": k["id"], "limite": 100}).json() if t["id"] == pad["id"])
@@ -123,3 +123,34 @@ def test_so_o_dono_importa_e_vencimento_incompativel(cenario, nova_pessoa):
     r = a.post("/api/faturas/importar/aplicar", json={"cartao_id": k["id"], "vencimento": "2026-10-09", "linhas": [
         {"acao": "criar", "data": "2026-09-10", "descricao": "X", "valor_centavos": 100, "plastico_id": cenario["principal"]["id"]}]})
     assert r.status_code == 422 and "não bate" in r.json()["detail"]
+
+
+def test_parcelas_futuras_previstas_nao_mexem_na_fatura_atual_e_confirmam_na_proxima(cenario):
+    a, k = cenario["a"], cenario["k"]
+    p = ler(a, k).json()
+    linhas = [{"acao": "criar", "data": l["data"], "descricao": l["descricao"], "favorecido_nome": l["favorecido_nome"], "plastico_id": l["plastico_id"],
+               "valor_centavos": l["valor_centavos"], "parcela_atual": l["parcela_atual"], "parcelas_total": l["parcelas_total"], "criar_futuras": True}
+              for l in p["linhas"] if l["descricao"] == "LOJA XYZ"]
+    r = a.post("/api/faturas/importar/aplicar", json={"cartao_id": k["id"], "vencimento": "2026-10-04", "linhas": linhas}).json()
+    assert r["criadas"] == 1 and r["futuras"] == 7
+    fats = {f["data_vencimento"]: f for f in a.get(f"/api/cartoes/{k['id']}/faturas").json()}
+    assert fats["2026-10-04"]["total"] == -(12000 + 3000 + 5000 + 10000)             # a fatura atual só ganhou a parcela 3/10
+    assert fats["2026-11-04"]["total"] == -10000 and fats["2027-05-04"]["total"] == -10000   # parcelas 4/10 e 10/10, nos meses certos
+    parcelas = [t for t in a.get("/api/transacoes", params={"cartao_id": k["id"], "limite": 100}).json() if t["descricao"] == "LOJA XYZ"]
+    assert sorted(t["numero_parcela"] for t in parcelas) == list(range(3, 11))
+    assert {t["estado"] for t in parcelas if t["numero_parcela"] > 3} == {"previsto"}
+    assert len({t["parcelamento_id"] for t in parcelas}) == 1
+    # aplicar de novo com as futuras marcadas não duplica
+    outro = a.post("/api/faturas/importar/aplicar", json={"cartao_id": k["id"], "vencimento": "2026-10-04", "linhas": linhas}).json()
+    assert outro["futuras"] == 0                                                   # as parcelas seguintes já existem: não duplica
+    # fatura seguinte: a parcela 4/10 casa com a prevista e passa a confirmada
+    gemini.MOCK_FATURA = {"emissor": "Banco Exemplo", "vencimento": "2026-11-04", "fechamento": "2026-10-28", "total_fatura": 100.0, "linhas": [
+        {"data": "2026-08-15", "descricao": "LOJA XYZ", "valor": 100.00, "parcela_atual": 4, "parcelas_total": 10, "final_cartao": "1111", "tipo": "compra"}]}
+    q = a.post("/api/faturas/importar/ler", files={"arquivo": ("f.pdf", pdf_bytes(), "application/pdf")}, data={"cartao_id": k["id"], "senha": ""}).json()
+    l = q["linhas"][0]
+    assert l["acao_sugerida"] == "conferir" and l["casamento"]["diferenca_centavos"] == 0
+    a.post("/api/faturas/importar/aplicar", json={"cartao_id": k["id"], "vencimento": "2026-11-04", "linhas": [
+        {"acao": "conferir", "transacao_id": l["casamento"]["transacao_id"], "data": l["data"], "descricao": l["descricao"], "plastico_id": l["plastico_id"],
+         "valor_centavos": l["valor_centavos"], "parcela_atual": 4, "parcelas_total": 10}]})
+    t4 = next(t for t in a.get("/api/transacoes", params={"cartao_id": k["id"], "limite": 100}).json() if t["descricao"] == "LOJA XYZ" and t["numero_parcela"] == 4)
+    assert t4["estado"] == "confirmado"

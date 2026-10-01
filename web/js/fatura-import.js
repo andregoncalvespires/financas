@@ -30,7 +30,7 @@ export function importarFatura(k, aoTerminar) {
 function conferir(corpo, fechar, k, p, aoTerminar) {
   const ehCartaoDono = k.dono_id;
   const linhas = p.linhas.map(l => ({
-    ...l, acao: l.acao_sugerida, incluir: l.acao_sugerida === 'criar',
+    ...l, acao: l.acao_sugerida, incluir: l.acao_sugerida === 'criar', futuras: true,
     usarFatura: l.acao_sugerida === 'atualizar',
   }));
   const contador = h('b');
@@ -43,16 +43,18 @@ function conferir(corpo, fechar, k, p, aoTerminar) {
       if (a === 'ignorar') continue;
       envio.push({ acao: a, transacao_id: l.casamento ? l.casamento.transacao_id : null, data: l.data, descricao: l.descricao,
         favorecido_id: l.favorecido_id, favorecido_nome: l.favorecido_nome, categoria_id: l.categoria_id || null, plastico_id: l.plastico_id,
-        valor_centavos: l.valor_centavos, eh_credito: l.eh_credito, parcela_atual: l.parcela_atual, parcelas_total: l.parcelas_total });
+        valor_centavos: l.valor_centavos, eh_credito: l.eh_credito, parcela_atual: l.parcela_atual, parcelas_total: l.parcelas_total,
+        criar_futuras: !l.casamento && l.futuras && l.parcelas_total > l.parcela_atual && !l.eh_credito });
     }
     const r = await POST('/api/faturas/importar/aplicar', { cartao_id: k.id, vencimento: p.fatura.vencimento, linhas: envio });
-    aviso(`${r.criadas} lançamento(s) criado(s), ${r.atualizadas} atualizado(s)`);
+    aviso(`${r.criadas} lançamento(s) criado(s), ${r.atualizadas} atualizado(s)` + (r.futuras ? `, ${r.futuras} parcela(s) futura(s) prevista(s)` : ''));
     fechar(); aoTerminar();
   }) }, 'Aplicar');
   const recontar = () => {
     const novas = linhas.filter(l => !l.casamento && l.incluir).length;
     const atual = linhas.filter(l => l.casamento && l.usarFatura).length;
-    contador.textContent = `${novas} nova(s), ${atual} atualizada(s)`;
+    const fut = linhas.reduce((n, l) => n + (!l.casamento && l.incluir && l.futuras && !l.eh_credito && l.parcelas_total > l.parcela_atual ? l.parcelas_total - l.parcela_atual : 0), 0);
+    contador.textContent = `${novas} nova(s), ${atual} atualizada(s)` + (fut ? `, +${fut} parcela(s) futura(s)` : '');
   };
 
   const f = p.fatura;
@@ -98,10 +100,20 @@ function conferir(corpo, fechar, k, p, aoTerminar) {
     const marca = h('input', { type: 'checkbox', onchange: () => { l.incluir = marca.checked; recontar(); } });
     marca.checked = l.incluir;
     const nome = h('input', { type: 'text', value: l.favorecido_nome || '', maxlength: 120, 'aria-label': 'Favorecido', onchange: () => { l.favorecido_nome = nome.value.trim(); l.favorecido_id = null; } });
+    const resta = l.parcelas_total - l.parcela_atual;
+    let futuras = null;
+    if (resta > 0 && !l.eh_credito) {
+      const ult = new Date(`${p.fatura.vencimento}T12:00:00`);
+      ult.setMonth(ult.getMonth() + resta);
+      const caixa = h('input', { type: 'checkbox', onchange: () => { l.futuras = caixa.checked; recontar(); } });
+      caixa.checked = l.futuras;
+      futuras = h('label', { class: 'imp-futuras' }, caixa,
+        h('span', null, `Criar também as ${resta} parcela(s) futura(s) como previstas: ${resta} × ${brl(l.valor_centavos)}, até ${String(ult.getMonth() + 1).padStart(2, '0')}/${ult.getFullYear()}`));
+    }
     return h('div', { class: 'imp-linha' },
       h('label', { class: 'imp-topo' }, marca, h('div', { class: 'corpo' }, h('b', null, l.descricao), h('small', null, `${dataCurta(l.data)}${rotuloParcela(l)} · ${l.plastico_rotulo}${l.motivo ? ' · ' + l.motivo : ''}`)), h('b', null, valorTxt(l))),
       l.alerta ? h('small', { class: 'dica' }, l.alerta) : null,
-      h('div', { class: 'duas' }, nome, seletorCategoria(l)));
+      h('div', { class: 'duas' }, nome, seletorCategoria(l)), futuras);
   }
 
   const ja = linhas.filter(l => l.casamento), novas = linhas.filter(l => !l.casamento && l.acao === 'criar'), fora = linhas.filter(l => !l.casamento && l.acao === 'ignorar');
