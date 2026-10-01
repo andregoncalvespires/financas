@@ -41,6 +41,14 @@ Para usar noutro dispositivo da mesma rede (telemóvel, tablet), abra `http://IP
 
 Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
+## Ecrãs
+
+<p align="center">
+<img src="docs/img/01-inicio.png" width="180" alt="Início"> <img src="docs/img/02-proximos-eventos.png" width="180" alt="Próximos eventos"> <img src="docs/img/05-lancamentos.png" width="180" alt="Lançamentos"> <img src="docs/img/06-filtros.png" width="180" alt="Filtros"> <img src="docs/img/07-filtro-cartao.png" width="180" alt="Consulta por cartão"> <img src="docs/img/08-cartoes.png" width="180" alt="Cartões e faturas">
+</p>
+
+<sub>Dados fictícios, apenas para demonstração.</sub>
+
 ## O que a aplicação faz
 
 **Contas e saldos**

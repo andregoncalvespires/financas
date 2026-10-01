@@ -41,6 +41,14 @@ To use it from another device on the same network (phone, tablet), open `http://
 
 If something does not work, see [Common problems](#common-problems).
 
+## Screenshots
+
+<p align="center">
+<img src="docs/img/01-inicio.png" width="180" alt="Home"> <img src="docs/img/02-proximos-eventos.png" width="180" alt="Upcoming events"> <img src="docs/img/05-lancamentos.png" width="180" alt="Transactions"> <img src="docs/img/06-filtros.png" width="180" alt="Filters"> <img src="docs/img/07-filtro-cartao.png" width="180" alt="Card query"> <img src="docs/img/08-cartoes.png" width="180" alt="Cards and statements">
+</p>
+
+<sub>Fictional data, for demonstration only.</sub>
+
 ## What it does
 
 **Accounts and balances**

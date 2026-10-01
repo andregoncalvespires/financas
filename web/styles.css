@@ -55,7 +55,7 @@ details.cartao[open] > summary::after { content: '▴'; }
 .detalhe { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 10px 0 0; font-size: .9rem; }
 .detalhe dt { color: var(--suave); } .detalhe dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; text-align: center; }
-.tres small { display: block; } .tres b { font-variant-numeric: tabular-nums; font-size: .95rem; }
+.tres small { display: block; } .tres b { font-variant-numeric: tabular-nums; font-size: .9rem; white-space: nowrap; }
 .barras { margin-top: 12px; display: grid; gap: 8px; }
 .barra { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: .88rem; }
 .barra .trilho { grid-column: 1 / -1; height: 6px; border-radius: 4px; background: var(--borda); overflow: hidden; order: 3; }
@@ -75,7 +75,7 @@ details.cartao[open] > summary::after { content: '▴'; }
 .lista { margin-bottom: 14px; }
 .topo-sub { display: flex; align-items: center; gap: 4px; } .topo-sub .icone { font-size: 1.8rem; text-decoration: none; width: 36px; }
 .navmes { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.navmes b { text-transform: capitalize; }
+.navmes b { display: inline-block; } .navmes b::first-letter { text-transform: uppercase; }
 
 /* botões e formulários */
 .btn { display: inline-flex; justify-content: center; align-items: center; gap: 6px; width: 100%; border: 0; border-radius: 12px; padding: 13px 16px; background: var(--marca); color: var(--marca-tx);
