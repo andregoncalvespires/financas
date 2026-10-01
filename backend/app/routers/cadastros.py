@@ -115,13 +115,17 @@ def mesclar_categoria(cid: str, body: MesclarIn, cur=Depends(get_db), usuario: U
 
 
 @router.get("/favorecidos")
-def favorecidos(q: str = Query(default="", max_length=60), dono_id: str | None = None, cur=Depends(get_db)):
+def favorecidos(q: str = Query(default="", max_length=60), dono_id: str | None = None, limite: int = Query(default=50, ge=1, le=50),
+                cur=Depends(get_db)):
+    """Sugestões de favorecido: começa por quem começa com o texto, depois os mais usados, depois ordem alfabética."""
+    n = norm(q)
     sql = "SELECT id, dono_id, nome, categoria_padrao_id FROM favorecido WHERE nome_norm LIKE %s"
-    params: list = [f"%{norm(q)}%"]
+    params: list = [f"%{n}%"]
     if dono_id:
         sql += " AND dono_id = %s"
         params.append(dono_id)
-    return cur.execute(sql + " ORDER BY nome LIMIT 50", params).fetchall()
+    sql += (" ORDER BY (nome_norm LIKE %s) DESC, (SELECT COUNT(*) FROM transacao t WHERE t.favorecido_id = favorecido.id) DESC, nome LIMIT %s")
+    return cur.execute(sql, (*params, f"{n}%", limite)).fetchall()
 
 
 @router.post("/favorecidos", status_code=201)

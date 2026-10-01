@@ -1,5 +1,5 @@
 // Cadastros em cache e formulário de lançamento (manual, sugestão da IA e edição).
-import { h, GET, POST, PATCH, DEL, api, aviso, acao, campo, brl, parseValor, centavosParaCampo, hojeISO, FORMAS, confirmar, folha } from './util.js';
+import { h, GET, POST, PATCH, DEL, api, aviso, acao, campo, campoFavorecido, brl, parseValor, centavosParaCampo, hojeISO, FORMAS, confirmar, folha } from './util.js';
 
 export const estado = { eu: null, contas: [], cartoes: [], categorias: [] };
 
@@ -64,8 +64,10 @@ export function formTransacao(opts) {
   const data = h('input', { type: 'date', value: ini.data_competencia || hojeISO(), required: true });
   const dataCaixa = h('input', { type: 'date', value: ed ? ed.data_caixa : '' });
   const descricao = h('input', { type: 'text', maxlength: 200, placeholder: 'Ex.: compras da semana', value: ini.descricao || '' });
-  const listaFav = h('datalist', { id: 'lista-fav' });
-  const favorecido = h('input', { type: 'text', list: 'lista-fav', placeholder: 'Onde / quem', autocomplete: 'off', value: ini.favorecido_nome || '' });
+  // sugestões dos favoritos já cadastrados do dono da conta/cartão escolhido; ao igualar um nome, sugere a categoria padrão dele
+  const campoFav = campoFavorecido({ valor: ini.favorecido_nome || '', dono: () => { const d = ed ? null : dest(); return d ? d.dono : null; },
+    aoEscolher: (r) => { if (r.categoria_padrao_id && !categoria.value && [...categoria.options].some(o => o.value === r.categoria_padrao_id)) { categoria.value = r.categoria_padrao_id; catEscolhida = categoria.value; } } });
+  const favorecido = campoFav.input;
   const destino = h('select', { value: inicialDest }, dests.map(d => h('option', { value: d.valor }, d.rotulo)));
   const categoria = h('select', null);
   const forma = h('select', { value: ini.forma_pagamento || '' }, h('option', { value: '' }, '—'),
@@ -82,7 +84,7 @@ export function formTransacao(opts) {
   const atualizarModo = () => { blocoModo.hidden = !(parseInt(parcelas.value, 10) > 1); };
   parcelas.addEventListener('input', atualizarModo);
   const cData = campo('Data da compra / competência', data);
-  const cFav = campo('Favorecido', favorecido);
+  const cFav = campo('Favorecido', campoFav.el);
   const cDest = campo('Conta ou cartão', destino);
   const cCat = campo('Categoria', categoria);
   const blocoCaixa = campo('Data de caixa', dataCaixa, 'Quando o dinheiro sai da conta. Deixe em branco para usar a mesma data.');
@@ -120,28 +122,12 @@ export function formTransacao(opts) {
   }
   categoria.addEventListener('change', () => { catEscolhida = categoria.value; });
   destino.addEventListener('change', () => { montarCategorias(); atualizarVisibilidade(); });
-  let tBusca;
-  favorecido.addEventListener('input', () => {
-    clearTimeout(tBusca);
-    tBusca = setTimeout(async () => {
-      const d = ed ? null : dest();
-      try {
-        const rs = await GET(`/api/favorecidos?q=${encodeURIComponent(favorecido.value)}${d ? '&dono_id=' + d.dono : ''}`);
-        listaFav.replaceChildren(...rs.map(r => h('option', { value: r.nome })));
-        const igual = rs.find(r => r.nome.toLowerCase() === favorecido.value.trim().toLowerCase());
-        if (igual && igual.categoria_padrao_id && !categoria.value) {
-          if ([...categoria.options].some(o => o.value === igual.categoria_padrao_id)) { categoria.value = igual.categoria_padrao_id; catEscolhida = categoria.value; }
-        }
-      } catch { /* sugestões são opcionais */ }
-    }, 250);
-  });
-
   const enviar = h('button', { class: 'btn', type: 'submit' }, ed ? 'Salvar' : opts.capturaId ? 'Confirmar lançamento' : 'Lançar');
   const form = h('form', { class: 'form', novalidate: true },
     ed ? null : segmento,
     campo('Valor (R$)', valor),
     cData,
-    cFav, listaFav,
+    cFav,
     campo('Descrição', descricao),
     ed ? h('p', { class: 'dica' }, `Lançado em: ${ed.plastico_id ? `${ed.cartao_nome} ·· ${ed.plastico_final}` : ed.conta_nome}`)
        : cDest,

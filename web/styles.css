@@ -181,3 +181,10 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .quebra h3 { margin: 12px 0 4px; font-size: .9rem; color: var(--suave); }
 .duas + small, .segmentado + small.dica { display: block; margin-top: 6px; }
+
+/* sugestões de favorecido */
+.auto { position: relative; }
+.sugestoes { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 2px; background: var(--surf); border: 1px solid var(--borda); border-radius: 10px; box-shadow: var(--sombra); max-height: 240px; overflow-y: auto; }
+.sugestao { padding: 10px 12px; cursor: pointer; font-size: .95rem; }
+.sugestao + .sugestao { border-top: 1px solid var(--borda); }
+.sugestao:hover, .sugestao.ativo { background: var(--borda); }

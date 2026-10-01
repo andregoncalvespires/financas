@@ -1,4 +1,4 @@
-import { h, GET, POST, campo, brl, hojeISO, folha, aviso, acao, limpar, vazio, mesISO, somarMes, intervaloMes, nomeMes, rotuloDia, FORMAS, dataLonga, confirmar, efetivar } from './util.js';
+import { h, GET, POST, campo, campoFavorecido, brl, hojeISO, folha, aviso, acao, limpar, vazio, mesISO, somarMes, intervaloMes, nomeMes, rotuloDia, FORMAS, dataLonga, confirmar, efetivar } from './util.js';
 import { formTransacao, excluirTransacao, estado } from './form.js';
 
 const vazioF = () => ({ modo: 'mes', de: '', ate: '', base: 'competencia', estado: '', tipo: '', conta: '', cartao: '', plastico: '', fatura: '',
@@ -135,16 +135,9 @@ async function abrirFiltros(aplicar) {
     };
     desenharOnde();
 
-    // favorecido: busca por nome (lista de sugestões); vazio = todos
-    const lista = h('datalist', { id: 'fav-filtro' });
-    const fav = h('input', { type: 'text', list: 'fav-filtro', placeholder: 'Todos', autocomplete: 'off', value: f.favorecido ? f.favorecido.nome : '' });
-    let achados = [];
-    fav.addEventListener('input', async () => {
-      const igual = achados.find(a => a.nome.toLowerCase() === fav.value.trim().toLowerCase());
-      f.favorecido = igual ? { id: igual.id, nome: igual.nome } : null;
-      if (fav.value.trim().length < 2) return;
-      try { achados = await GET(`/api/favorecidos?q=${encodeURIComponent(fav.value.trim())}`); limpar(lista); achados.forEach(a => lista.append(h('option', { value: a.nome }))); } catch { /* sem sugestões */ }
-    });
+    // favorecido: sugestões dos já cadastrados; só vale o nome escolhido da lista (vazio = todos)
+    const campoFav = campoFavorecido({ valor: f.favorecido ? f.favorecido.nome : '', placeholder: 'Todos', aoEscolher: (r) => { f.favorecido = { id: r.id, nome: r.nome }; } });
+    campoFav.input.addEventListener('input', () => { if (!f.favorecido || f.favorecido.nome.toLowerCase() !== campoFav.input.value.trim().toLowerCase()) f.favorecido = null; });
 
     const raizes = n.cats.filter(c => c.ativa && !c.pai_id);
     const opcoesCat = [{ v: '', t: 'Todas' }];
@@ -155,7 +148,7 @@ async function abrirFiltros(aplicar) {
       h('h3', null, 'Período'), periodoBox,
       campo('Datas por', sel([{ v: 'competencia', t: 'Competência' }, { v: 'caixa', t: 'Caixa' }], f.base, (v) => { f.base = v; })),
       ondeBox,
-      campo('Favorecido', h('span', null, fav, lista), 'Digite e escolha uma sugestão da lista.'),
+      campo('Favorecido', campoFav.el, 'Toque em uma sugestão para filtrar por esse favorecido.'),
       campo('Categoria', sel(opcoesCat, f.categoria, (v) => { f.categoria = v; }), 'Escolher uma categoria principal inclui as subcategorias.'),
       campo('Tipo', sel([{ v: '', t: 'Todos' }, { v: 'despesa', t: 'Despesas' }, { v: 'receita', t: 'Receitas' }, { v: 'transferencia', t: 'Transferências' }, { v: 'pagamento_fatura', t: 'Pagamentos de fatura' }], f.tipo, (v) => { f.tipo = v; })),
       campo('Situação', sel([{ v: '', t: 'Todas' }, { v: 'previsto', t: 'Só previstos' }, { v: 'confirmado', t: 'Só confirmados' }], f.estado, (v) => { f.estado = v; })),

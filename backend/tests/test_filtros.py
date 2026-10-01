@@ -78,3 +78,17 @@ def test_filtros_respeitam_privacidade(nova_pessoa):
     base = "/api/transacoes?de=2026-09-01&ate=2026-09-30"
     assert b.get(base).json() == [] and b.get(f"{base}&cartao_id={m['k']['id']}").json() == []
     assert b.get("/api/transacoes/resumo?de=2026-09-01&ate=2026-09-30").json()["quantidade"] == 0
+
+
+def test_sugestoes_de_favorecido_prefixo_uso_e_limite(nova_pessoa):
+    p = nova_pessoa("sg")
+    cc = conta(p, "Corrente", 0)
+    d = "2026-09-10"
+    for nome, vezes in (("Mercado Lua", 3), ("Lua de Mel Viagens", 1), ("Padaria", 5), ("Açougue Central", 2)):
+        for _ in range(vezes):
+            lanca(p, valor_centavos=100, data_competencia=d, data_caixa=d, conta_id=cc["id"], favorecido_nome=nome)
+    nomes = lambda q="", extra="": [f["nome"] for f in p.get(f"/api/favorecidos?q={q}{extra}").json()]
+    assert nomes() == ["Padaria", "Mercado Lua", "Açougue Central", "Lua de Mel Viagens"]          # vazio: os mais usados primeiro
+    assert nomes("lua") == ["Lua de Mel Viagens", "Mercado Lua"]                                    # quem começa com o texto vem antes
+    assert nomes("acou") == ["Açougue Central"]                                                     # ignora acentos
+    assert len(nomes("", "&limite=2")) == 2

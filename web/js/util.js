@@ -177,6 +177,47 @@ export function efetivar({ id, titulo, valor_centavos, prevista, rotulo = 'Confi
   });
 }
 
+// Campo de favorecido com sugestões que já existem (as mais usadas ao focar; filtra enquanto digita; ignora acentos).
+// opts.dono: () => id do dono dos favorecidos (ou null para todos); opts.aoEscolher(registro): chamado ao escolher/igualar um nome.
+// Devolve { el, input }: coloque `el` no formulário e leia/escreva `input.value`.
+export function campoFavorecido({ valor = '', placeholder = 'Onde / quem', dono = () => null, aoEscolher = () => {} } = {}) {
+  const input = h('input', { type: 'text', placeholder, autocomplete: 'off', value: valor, role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', maxlength: 120 });
+  const lista = h('div', { class: 'sugestoes', role: 'listbox', hidden: true });
+  const el = h('div', { class: 'auto' }, input, lista);
+  let itens = [], ativo = -1, t, seq = 0;
+  const fechar = () => { lista.hidden = true; input.setAttribute('aria-expanded', 'false'); ativo = -1; };
+  const marcar = () => [...lista.children].forEach((c, i) => c.classList.toggle('ativo', i === ativo));
+  const escolher = (r) => { input.value = r.nome; fechar(); aoEscolher(r); };
+  const mostrar = () => {
+    lista.replaceChildren(...itens.map((r, i) => h('div', { class: 'sugestao', role: 'option', onpointerdown: (e) => { e.preventDefault(); escolher(r); } }, r.nome)));
+    lista.hidden = !itens.length; input.setAttribute('aria-expanded', String(!!itens.length)); ativo = -1;
+  };
+  const buscar = async () => {
+    const minha = ++seq, d = dono();
+    try {
+      const rs = await GET(`/api/favorecidos?q=${encodeURIComponent(input.value.trim())}&limite=8${d ? '&dono_id=' + d : ''}`);
+      if (minha !== seq) return;                       // chegou depois de uma busca mais nova
+      const novos = rs.filter(r => r.nome.toLowerCase() !== input.value.trim().toLowerCase());
+      const mudou = novos.map(r => r.nome).join('|') !== itens.map(r => r.nome).join('|') || lista.hidden;
+      itens = novos;
+      const igual = rs.find(r => r.nome.toLowerCase() === input.value.trim().toLowerCase());
+      if (igual) aoEscolher(igual);
+      if (mudou) mostrar();                            // não zera a seleção por teclado se a lista é a mesma
+    } catch { /* sugestões são opcionais */ }
+  };
+  input.addEventListener('focus', () => { if (document.activeElement === input) buscar(); });
+  input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(buscar, 150); });
+  input.addEventListener('blur', () => setTimeout(fechar, 120));
+  input.addEventListener('keydown', (e) => {
+    if (lista.hidden) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); ativo = (ativo + 1) % itens.length; marcar(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); ativo = (ativo - 1 + itens.length) % itens.length; marcar(); }
+    else if (e.key === 'Enter' && ativo >= 0) { e.preventDefault(); escolher(itens[ativo]); }
+    else if (e.key === 'Escape') { e.stopPropagation(); fechar(); }
+  });
+  return { el, input };
+}
+
 // botão que desabilita durante a ação assíncrona e mostra o erro
 export function acao(fn) {
   return async (e) => {

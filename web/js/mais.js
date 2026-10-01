@@ -1,4 +1,4 @@
-import { h, GET, POST, PATCH, PUT_, DEL, brl, folha, aviso, acao, campo, limpar, vazio, parseValor, centavosParaCampo, hojeISO, mesISO, dataLonga, PAPEIS, FORMAS, confirmar, api } from './util.js';
+import { h, GET, POST, PATCH, PUT_, DEL, brl, folha, aviso, acao, campo, campoFavorecido, limpar, vazio, parseValor, centavosParaCampo, hojeISO, mesISO, dataLonga, PAPEIS, FORMAS, confirmar, api } from './util.js';
 import { estado, carregarCadastros, destinos } from './form.js';
 import { VERSAO_APP } from './versao.js';
 
@@ -299,7 +299,9 @@ function novaRecorrencia(recarregar) {
     const tipo = h('select', null, h('option', { value: 'despesa' }, 'Despesa'), h('option', { value: 'receita' }, 'Receita'));
     const valor = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0,00' });
     const dia = h('input', { type: 'number', min: 1, max: 31, inputmode: 'numeric', placeholder: '10' });
-    const fav = h('input', { type: 'text', placeholder: 'Ex.: Condomínio' });
+    const campoFav = campoFavorecido({ placeholder: 'Ex.: Condomínio', dono: () => { const d = dests.find(x => x.valor === dest.value); return d ? d.dono : null; },
+      aoEscolher: (r) => { if (r.categoria_padrao_id && !cat.value && [...cat.options].some(o => o.value === r.categoria_padrao_id)) cat.value = r.categoria_padrao_id; } });
+    const fav = campoFav.input;
     const dest = h('select', null, dests.map(d => h('option', { value: d.valor }, d.rotulo)));
     const forma = h('select', null, h('option', { value: '' }, '—'), Object.entries(FORMAS).map(([k, v]) => h('option', { value: k }, v)));
     const cat = h('select', null);
@@ -314,7 +316,7 @@ function novaRecorrencia(recarregar) {
       }
     };
     dest.addEventListener('change', montar); tipo.addEventListener('change', montar); montar();
-    corpo.append(campo('Tipo', tipo), campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Favorecido', fav), campo('Conta ou cartão', dest), campo('Categoria', cat), campo('Forma de pagamento', forma),
+    corpo.append(campo('Tipo', tipo), campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Favorecido', campoFav.el), campo('Conta ou cartão', dest), campo('Categoria', cat), campo('Forma de pagamento', forma),
       h('button', { class: 'btn', onclick: acao(async () => {
         const v = parseValor(valor.value), d = dests.find(x => x.valor === dest.value);
         if (!(v > 0) || !dia.value || !d) throw new Error('Informe valor, dia e conta/cartão.');
