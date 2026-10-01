@@ -1,5 +1,6 @@
 import logging
 import json
+from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 
@@ -37,17 +38,22 @@ def solicitar(body: SolicitarIn, request: Request, bg: BackgroundTasks):
 
 
 @router.post("/auth/verificar")
-def verificar(body: VerificarIn, request: Request, response: Response):
+def verificar(body: VerificarIn, request: Request, response: Response, bg: BackgroundTasks):
     email = body.email.lower()
     with sessao(None) as cur:
         st = cur.execute("SELECT auth_verificar_otp(%s, %s) AS st", (email, hash_codigo(email, body.codigo))).fetchone()["st"]
     if st != "ok":
         raise HTTPException(400 if st == "invalido" else 429, "código inválido ou expirado" if st == "invalido" else "tentativas esgotadas; peça um novo código")
     with sessao(None) as cur:
+        existia = cur.execute("SELECT auth_usuario_existe(%s) AS e", (email,)).fetchone()["e"]
         uid = cur.execute("SELECT auth_upsert_usuario(%s, %s, %s) AS id",
                           (email, email.split("@")[0].replace(".", " ").title(), True)).fetchone()["id"]
         token = gerar_token()
         cur.execute("SELECT auth_criar_dispositivo(%s, %s, %s)", (uid, hash_token(token), body.dispositivo))
+    if not existia and settings.smtp_user:   # avisa o administrador (o e-mail configurado em SMTP_USER) de cada conta nova
+        quando = datetime.now().strftime("%d/%m/%Y %H:%M")
+        bg.add_task(mailer.enviar, settings.smtp_user, "Finanças: novo usuário cadastrado",
+                    f"Uma nova conta foi criada no Finanças.\n\nE-mail: {email}\nQuando: {quando}\n")
     response.set_cookie(COOKIE, token, max_age=365 * 24 * 3600, httponly=True, secure=request.url.scheme == "https", samesite="lax", path="/")
     return {"token": token, "email": email}
 

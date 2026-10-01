@@ -74,6 +74,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Várias pessoas, com privacidade**
 - Cada pessoa vê apenas os próprios dados. Você compartilha **conta por conta** (ou um cartão) com quem quiser, como leitor, editor ou gestor, e retira o acesso quando quiser.
+- **Aviso de novos cadastros:** a cada conta nova, o e-mail do administrador (o `SMTP_USER` do `docker-compose.yml`) recebe um aviso.
 - Entrada **sem senha**: um código de 6 dígitos chega por e-mail e o aparelho fica lembrado. Você vê e revoga os aparelhos conectados.
 - O isolamento entre pessoas é garantido pelo próprio banco de dados (segurança por linha do PostgreSQL), não só pelo código do aplicativo.
 

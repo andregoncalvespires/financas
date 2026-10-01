@@ -1,2 +1,2 @@
 // Versão deste conjunto de arquivos do app. Deve coincidir com o arquivo VERSION (um teste confere).
-export const VERSAO_APP = '1.11.0';
+export const VERSAO_APP = '1.12.0';

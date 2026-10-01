@@ -74,6 +74,7 @@ If something does not work, see [Common problems](#common-problems).
 
 **Several people, with privacy**
 - Each person sees only their own data. You share **account by account** (or a card) with whoever you want, as viewer, editor or manager, and withdraw access at any time.
+- **New-account notice:** whenever a new account is created, the administrator e-mail (`SMTP_USER` in `docker-compose.yml`) gets a message.
 - **Passwordless** sign-in: a 6-digit code arrives by e-mail and the device is remembered. You can see and revoke connected devices.
 - Isolation between people is enforced by the database itself (PostgreSQL row-level security), not only by the application code.
 

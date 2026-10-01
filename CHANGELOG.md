@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.12.0 — 2026-10-01
+- **Aviso de novo cadastro:** sempre que uma conta nova é criada (primeiro acesso de um e-mail), o e-mail configurado em `SMTP_USER` recebe uma mensagem com o endereço de quem entrou e a data e hora. Acessos seguintes da mesma pessoa não geram aviso. Não há nada a configurar (migração 009, só adiciona uma função, aplicada sozinha).
+
 ## 1.11.0 — 2026-10-01
 - **Atenção ao atualizar:** a porta padrão passou de **8000** para **8472**, para não conflitar com outros aplicativos comuns (como o Portainer). O app agora escuta na 8472 também dentro do container, então **baixe o `docker-compose.yml` novo** (linha `"8472:8472"`) antes do `docker compose pull && docker compose up -d`, ou ajuste a sua. Atualize também o `APP_URL` e qualquer proxy, túnel ou domínio que apontava para a 8000. Para manter outra porta, mude só o número da esquerda em `ports` (ex.: `"8080:8472"`).
 
