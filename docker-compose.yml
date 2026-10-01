@@ -1,0 +1,82 @@
+# Finanças: instalação em 3 passos
+#   1) Preencha as duas linhas "EDITE AQUI" logo abaixo (o e-mail que vai enviar os códigos de acesso)
+#   2) Rode:  docker compose up -d
+#   3) Abra:  http://localhost:8000
+# Guia completo: https://github.com/andregoncalvespires/financas
+# NUNCA rode "docker compose down -v": o -v apaga o banco e os comprovantes.
+name: financas
+
+x-configuracao: &configuracao
+  # ===== EDITE AQUI (obrigatório) =====
+  SMTP_USER: ""          # e-mail que envia os códigos de acesso. Ex.: seu.nome@gmail.com
+  SMTP_PASSWORD: ""      # no Gmail, uma "senha de app" (veja o guia). Não use $ nem aspas na senha.
+
+  # ===== Opcional =====
+  GEMINI_API_KEY: ""     # chave do Google Gemini para ler comprovantes por foto. Vazio = função desligada.
+  APP_URL: "http://localhost:8000"   # endereço pelo qual as pessoas acessam; aparece nos e-mails de convite
+  TZ: "America/Sao_Paulo"            # fuso horário das datas
+  # Outro provedor de e-mail que não seja o Gmail? Tire o # das linhas abaixo e ajuste:
+  # SMTP_HOST: "smtp.gmail.com"
+  # SMTP_PORT: "587"                 # 587 = STARTTLS, 465 = SSL
+  # MAIL_FROM: ""                    # remetente; vazio = igual a SMTP_USER
+  # GEMINI_MODEL: "gemini-3.5-flash-lite"
+  # CAPTURAS_POR_DIA: "30"           # limite de leituras de comprovante por pessoa a cada 24 h
+
+# A partir daqui não precisa mexer em nada.
+x-imagem: &imagem ghcr.io/andregoncalvespires/financas:1
+
+services:
+  # Roda uma vez: gera e guarda as senhas do banco e o segredo dos códigos de login.
+  segredos:
+    image: *imagem
+    user: "0:0"
+    command: ["python", "-m", "app.segredos"]
+    environment:   # só para quem já tinha uma instalação com estes valores num .env: são adotados
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-}
+      APP_PEPPER: ${APP_PEPPER:-}
+    volumes:
+      - segredos:/segredos
+    restart: "no"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fin_owner
+      POSTGRES_PASSWORD_FILE: /segredos/postgres_password
+      POSTGRES_DB: financas
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - segredos:/segredos:ro
+    depends_on:
+      segredos: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fin_owner -d financas"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: *imagem
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      segredos: { condition: service_completed_successfully }
+    environment:
+      <<: *configuracao
+      DB_HOST: db
+      DB_NAME: financas
+      POSTGRES_PASSWORD_FILE: /segredos/postgres_password
+      APP_DB_PASSWORD_FILE: /segredos/app_db_password
+      APP_PEPPER_FILE: /segredos/app_pepper
+    volumes:
+      - dados:/data
+      - segredos:/segredos:ro
+    ports:
+      - "8000:8000"      # acessível na sua rede. Só neste computador? Troque por "127.0.0.1:8000:8000"
+
+volumes:
+  pgdata:
+  dados:
+  segredos:

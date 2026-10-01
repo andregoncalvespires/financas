@@ -1,0 +1,7 @@
+# Para desenvolvedores: compila a imagem a partir do código-fonte em vez de baixar a pronta.
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  segredos:
+    build: .
+  api:
+    build: .

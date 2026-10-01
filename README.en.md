@@ -1,0 +1,198 @@
+# Finanças
+
+[Português (Brasil)](README.md) · [Português (Portugal)](README.pt-PT.md) · **English**
+
+A **self-hosted** personal and family finance app: you install it on your own computer or server, your data stays with you, and several people can use it with real privacy. It runs in the browser and can be installed on a phone as an app (PWA).
+
+## Install in 3 steps
+
+All you need is **Docker** with Compose (Docker Desktop on Windows and macOS; Docker Engine on Linux).
+
+**1. Download the template file.** Create a folder and save the [`docker-compose.yml`](https://raw.githubusercontent.com/andregoncalvespires/financas/main/docker-compose.yml) in it. In a terminal:
+
+```bash
+mkdir financas && cd financas
+curl -fsSLO https://raw.githubusercontent.com/andregoncalvespires/financas/main/docker-compose.yml
+```
+
+**2. Fill in two lines.** Open `docker-compose.yml` in a text editor and, in the "EDITE AQUI" (edit here) block at the top, fill in `SMTP_USER` (your e-mail address) and `SMTP_PASSWORD` (that e-mail's password). The app sends its sign-in codes through this e-mail account.
+
+<details>
+<summary><b>Using Gmail? How to get the password (1 minute)</b></summary>
+
+1. In your Google account, turn on **2-step verification** (Google Account → Security).
+2. Open <https://myaccount.google.com/apppasswords> and create an **app password**. Google shows 16 letters: copy them without the spaces.
+3. In `docker-compose.yml`:
+   ```yaml
+   SMTP_USER: "your.name@gmail.com"
+   SMTP_PASSWORD: "abcdefghijklmnop"
+   ```
+</details>
+
+**3. Start it and open it.**
+
+```bash
+docker compose up -d
+```
+
+Open <http://localhost:8000>, type your e-mail, enter the code that arrives in your inbox, and you are in. On first run the app generates its internal passwords (database and security) by itself; you do not need to create or write down anything.
+
+To use it from another device on the same network (phone, tablet), open `http://COMPUTER-IP:8000`.
+
+If something does not work, see [Common problems](#common-problems).
+
+## What it does
+
+**Accounts and balances**
+- Checking accounts, savings, investments, cash, third-party accounts and **benefit cards** (meal or food vouchers) with an automatic **monthly top-up** you can adjust or turn off. You create your own **account types**.
+- **Calculated available balance**: current balance minus what is planned to go out (bills, credit card statements and planned transfers) over the period you choose, from 7 to 90 days.
+
+**Transactions**
+- Expenses, income and **transfers between accounts** (checking to savings, to cash, and so on), which do not distort the month's income and expenses.
+- **Competence date** (the month it belongs to) and **cash date** (when the money moves).
+- **Planned or confirmed**: plan future payments and receipts, confirm them when they happen, or move a transaction back to planned if you confirmed it by mistake.
+- **Recurring transactions** (rent, salary, subscriptions), instalment purchases, payees with a suggested category and a lean chart of categories that you can edit and merge.
+
+**Credit cards**
+- Statements with closing and due dates, instalment purchases, and paying a statement from an account.
+- **Additional and virtual cards**: everyone's purchases land on the owner's statement. A family member invited as a cardholder sees only their own spending.
+
+**Planning**
+- **Budget** by category with validity rules: open-ended, for a number of months, for specific months of the year, or an adjustment to a single month.
+- **Home** screen: a summary by groups (available, benefits, investments, others and total) and **upcoming events** (bills to pay and receive, statements and planned transfers), with a button to confirm what has already happened.
+
+**Receipt reading with AI (optional)**
+- Take a photo of a receipt, invoice, bank transfer proof or statement and the app suggests the amount, date, merchant and category. You always review before saving.
+
+**Several people, with privacy**
+- Each person sees only their own data. You share **account by account** (or a card) with whoever you want, as viewer, editor or manager, and withdraw access at any time.
+- **Passwordless** sign-in: a 6-digit code arrives by e-mail and the device is remembered. You can see and revoke connected devices.
+- Isolation between people is enforced by the database itself (PostgreSQL row-level security), not only by the application code.
+
+**Your data is yours**
+- **Export everything** (an Excel spreadsheet with transactions and statements, plus the receipts) and **delete your own account and all your data** at any time, under More → My profile. The **About** screen shows the version and what is new.
+
+> The app's interface is in Brazilian Portuguese.
+
+## Optional settings
+
+<details>
+<summary><b>Another e-mail provider (not Gmail)</b></summary>
+
+Any SMTP server that accepts **user name and password** works (a sending service such as Brevo, Mailgun or Amazon SES, or your own domain's mail server). In `docker-compose.yml`, remove the `#` and adjust `SMTP_HOST`, `SMTP_PORT` (587 = STARTTLS, 465 = SSL) and, if you like, `MAIL_FROM`, using the details your provider shows in its dashboard.
+</details>
+
+<details>
+<summary><b>Receipt reading with AI (Google Gemini)</b></summary>
+
+Entirely optional: without a key everything works, only automatic reading is off and you enter transactions by hand.
+
+1. Create a key at <https://aistudio.google.com/apikey>.
+2. **Enable billing** on the Google project that owns the key. Under Google's terms, content sent with a key that has no billing (the free tier) may be used to improve their products; with billing enabled, it is not. Check the current terms before using real data.
+3. In `docker-compose.yml`, fill in `GEMINI_API_KEY: "your-key"` and run `docker compose up -d`.
+
+**What is sent to Google:** only the receipt's image or PDF and the app's list of categories, so the AI can pick one. Balances, accounts, names and your other transactions are **not** sent. The key stays on the server only.
+
+**How it works:** the AI returns a *suggestion*; you check it, fix it if needed and only then save it. `CAPTURAS_POR_DIA` (default 30) limits use per person and controls cost.
+</details>
+
+<details>
+<summary><b>Reaching it away from home, and installing on a phone</b></summary>
+
+The app works on any network where the computer is reachable; it does not depend on any external service. **How to expose it to the internet is your choice** (VPN, tunnel, reverse proxy with HTTPS, whatever you prefer).
+
+- To **install on a phone** as an app, the browser requires HTTPS (or `localhost`). Without HTTPS you can still use the app normally in the browser.
+- With HTTPS the app marks the sign-in cookie as secure automatically. Set `APP_URL` to the public address so the links in invitation e-mails work.
+- If you use a proxy, forward to port 8000 and send the `X-Forwarded-For` and `X-Forwarded-Proto` headers. Example with Caddy (gets its own certificate): `financas.yourdomain.com { reverse_proxy 127.0.0.1:8000 }`.
+- To accept connections only from the computer itself (for example behind a local proxy), replace the `"8000:8000"` line with `"127.0.0.1:8000:8000"` in `docker-compose.yml`.
+
+> **Warning:** anyone who can reach the address can create an account (they just need to receive the code by e-mail), and the app sends those e-mails through your SMTP account. So keep the app on your local network or protect external access. The app limits code and invitation requests per person, but that is not a substitute for protection.
+</details>
+
+<details>
+<summary><b>Backup and restore</b></summary>
+
+Your data lives in Docker volumes (`pgdata`, the database, and `dados`, the receipts). They **survive** updates and restarts.
+
+> **Never run `docker compose down -v`**: the `-v` deletes the volumes, that is, all your data. To stop the app use `docker compose stop` (or `docker compose down`, without `-v`).
+
+**Take a backup** (on Windows use WSL or Git Bash: PowerShell changes the encoding of the generated files):
+
+```bash
+docker compose exec -T db pg_dump -U fin_owner -d financas -Fc > financas-$(date +%F).dump
+docker compose exec -T api tar czf - -C /data . > comprovantes-$(date +%F).tgz
+```
+
+**Keep those files off the computer** (another disk, cloud). To automate, put both commands in `crontab -e`, with `cd /folder/of/docker-compose &&` in front.
+
+**Restore** (on a new installation, or on the same one after a problem):
+
+```bash
+docker compose up -d                  # the app creates the empty structure
+docker compose stop api
+docker compose exec -T db pg_restore -U fin_owner -d financas --clean --if-exists --no-owner < financas-YYYY-MM-DD.dump
+docker compose exec -T api tar xzf - -C /data < comprovantes-YYYY-MM-DD.tgz     # receipts (optional)
+docker compose start api
+```
+</details>
+
+<details>
+<summary><b>Updating to a new version</b></summary>
+
+Take a backup (above) and, in the folder with `docker-compose.yml`:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+- Your data is not touched. Database changes are applied automatically at startup and **only add things**.
+- `docker-compose.yml` uses `:1`, which follows the compatible updates of version 1. To pin a version, change it, for example, to `:1.9.0` on the `x-imagem` line.
+- Read the [CHANGELOG](CHANGELOG.md) before updating: changes that need action from you are highlighted there. Under More → About the app you can see the version in use and what is new; if the server is newer than the app open on your phone, a button to update appears.
+- **Rolling back:** restore the backup you took before and use the previous version. Rolling back only the image, without restoring the database, may not work if the new version changed its structure.
+- Avoid automatic update tools (such as Watchtower): database changes happen at startup, and a backup beforehand matters.
+</details>
+
+## Common problems
+
+| Symptom | What to do |
+|---|---|
+| The app does not start (the `api` container keeps restarting) | `docker compose logs api`: the first line says what is left to fill in. |
+| The code does not arrive by e-mail | `docker compose logs api` and look for `e-mail enviado` (sent) or `falha ao enviar` (failed). Common causes: wrong app password, 2-step verification off, message in spam. |
+| It does not open from another device on the network | Use `http://COMPUTER-IP:8000` and allow port 8000 in the computer's firewall. |
+| Port 8000 is already in use | In `docker-compose.yml`, change `"8000:8000"` to `"8080:8000"` and use port 8080. |
+| After an update the phone still shows the old screen | More → About the app → update; if it does not show, clear the site's data in the phone's browser once. |
+| Receipt reading does not work | Check `GEMINI_API_KEY` and that billing is active on the Google project; the log shows the error returned. |
+
+## Privacy and security
+
+- Your data stays on your server. The only data that leaves it is what you choose to send: the code and invitation e-mails (through your SMTP provider) and, if you turn on AI reading, the receipt image (to Google).
+- Each person only sees what is theirs or what has been shared with them, and the database enforces this.
+- Secrets (database passwords and the key that protects the codes) are generated automatically and kept in a dedicated Docker volume.
+- To report a security issue, see [SECURITY.md](SECURITY.md).
+
+## Removing the installation
+
+To turn the app off while keeping your data: `docker compose down`. To **delete everything permanently** (database, receipts and secrets): `docker compose down -v`. Only do this if you are sure and have a backup stored.
+
+Each person can also delete their own account and data under More → My profile → *Excluir minha conta e todos os meus dados* (delete my account and all my data), confirmed with a code sent to their e-mail. If they own shared accounts or cards, those are deleted for everyone, and the app first warns who will lose access.
+
+## For developers
+
+Stack: Python 3.12 (FastAPI), PostgreSQL 16 with row-level security, a plain JavaScript front end (PWA, no build step). Migrations live in `backend/migrations` and are applied at startup.
+
+```bash
+# run from source (builds the image locally)
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+# tests (need a local PostgreSQL with the fin_owner role and the financas_test database; see backend/tests/conftest.py)
+cd backend && pip install -r requirements-dev.txt && python -m pytest -q
+```
+
+Each release is a `vX.Y.Z` tag (the `VERSION` file must match): when the tag is created, GitHub Actions runs the tests and publishes the image `ghcr.io/andregoncalvespires/financas`.
+
+## License and notice
+
+Distributed under the **GNU Affero General Public License v3.0** ([LICENSE](LICENSE)). In short: you may use, study, modify and share the program; if you offer a modified version as a service to other people over a network, you must make its source code available under the same license. This summary does not replace the license text.
+
+This software is provided **as is**, without warranty, and is not financial advice. Keep backups of your data.

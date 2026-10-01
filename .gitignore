@@ -1,0 +1,13 @@
+.env
+.env.*
+__pycache__/
+*.pyc
+.pytest_cache/
+dados/
+*.tar.gz
+/*.sql
+*.sql.gz
+*.dump
+*.enc
+backups/
+/backups/
