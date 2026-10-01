@@ -18,12 +18,14 @@ def test_saldo_disponivel_calculado_a_partir_dos_previstos(nova_pessoa):
     d = lambda n: (HOJE + timedelta(days=n)).isoformat()
     boleto = lanca(a, valor_centavos=20000, data_competencia=d(0), data_caixa=d(10), conta_id=cc["id"], categoria_id=cat, forma_pagamento="boleto", estado="previsto")[0]
     lanca(a, valor_centavos=5000, data_competencia=d(0), data_caixa=d(5), conta_id=cc["id"], categoria_id=cat, forma_pagamento="debito_automatico", estado="previsto")
-    lanca(a, valor_centavos=99999, data_competencia=d(0), data_caixa=d(60), conta_id=cc["id"], categoria_id=cat, estado="previsto")     # fora da janela
+    lanca(a, valor_centavos=99999, data_competencia=d(0), data_caixa=d(100), conta_id=cc["id"], categoria_id=cat, estado="previsto")    # fora da janela
     a.post("/api/transacoes", json={"tipo": "receita", "valor_centavos": 300000, "data_competencia": d(0), "data_caixa": d(20), "conta_id": cc["id"], "estado": "previsto"})
     k = a.post("/api/cartoes", json={"nome": "Visa", "dia_fechamento": 28, "dia_vencimento": 28, "conta_pagamento_id": cc["id"], "final_principal": "1111"}).json()
-    lanca(a, valor_centavos=30000, data_competencia=HOJE.replace(day=1).isoformat(), plastico_id=k["plasticos"][0]["id"], categoria_id=cat)
+    compra = lanca(a, valor_centavos=30000, data_competencia=HOJE.replace(day=1).isoformat(), plastico_id=k["plasticos"][0]["id"], categoria_id=cat)[0]
+    # o vencimento da fatura depende do dia do mês em que o teste roda: a janela vai até o que for maior, 30 dias ou esse vencimento
+    ate = max(d(30), compra["data_caixa"])
 
-    s = a.get(f"/api/saldo-disponivel?ate={d(30)}").json()
+    s = a.get(f"/api/saldo-disponivel?ate={ate}").json()
     c = s["contas"][0]
     assert c["saldo_atual"] == 100000
     assert c["por_forma"] == {"boleto": -20000, "debito_automatico": -5000}
@@ -34,7 +36,7 @@ def test_saldo_disponivel_calculado_a_partir_dos_previstos(nova_pessoa):
 
     # confirmar o boleto move o valor de "previsto" para o saldo atual
     assert a.post(f"/api/transacoes/{boleto['id']}/confirmar").status_code == 200
-    c2 = a.get(f"/api/saldo-disponivel?ate={d(30)}").json()["contas"][0]
+    c2 = a.get(f"/api/saldo-disponivel?ate={ate}").json()["contas"][0]
     assert c2["saldo_atual"] == 80000 and c2["livre"] == c["livre"]           # o livre não muda: já estava reservado
 
 

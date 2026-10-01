@@ -188,9 +188,10 @@ def test_orcamento_media_dos_ultimos_meses(nova_pessoa):
     a = nova_pessoa("dono")
     cc = conta(a)
     cat = categoria_por_codigo(a, "2020.01")
-    hoje = date.today().replace(day=1)
-    for i in (1, 2, 3):
-        lanca_conta(a, cc, cat, 30000 * i, (hoje - timedelta(days=31 * i - 1)).replace(day=15).isoformat())
+    hoje = date.today()
+    for i in (1, 2, 3):                                     # dia 15 de cada um dos 3 últimos meses fechados
+        ano, mes0 = divmod(hoje.year * 12 + hoje.month - 1 - i, 12)
+        lanca_conta(a, cc, cat, 30000 * i, date(ano, mes0 + 1, 15).isoformat())
     m = a.get("/api/orcamento/media?meses=3").json()
     assert m == [{"categoria_id": cat["id"], "valor_centavos": 60000}]              # (300+600+900)/3
 
