@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ..deps import Usuario, get_db, usuario_atual
-from ..schemas import GerarRecorrenciasIn, RecorrenciaIn, TransacaoIn, TransacaoPatch, TransferenciaIn
+from ..schemas import GerarRecorrenciasIn, RecorrenciaIn, RecorrenciaPatch, TransacaoIn, TransacaoPatch, TransferenciaIn
 from ..servicos import (add_months, atualizar, criar_transacoes, dono_do_alvo, mes_intervalo,
                         resolver_favorecido_categoria)
 
@@ -253,6 +253,40 @@ def criar_recorrencia(body: RecorrenciaIn, cur=Depends(get_db), usuario: Usuario
          body.descricao, body.inicio, body.fim)).fetchone()
 
 
+@router.patch("/recorrencias/{rid}")
+def alterar_recorrencia(rid: str, body: RecorrenciaPatch, cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Altera a recorrência para os próximos meses. Os previstos dela a partir do mês escolhido são refeitos com os dados novos;
+    o que já foi confirmado não muda. Pausar (ativa=false) ou definir um fim remove os previstos que ficam de fora."""
+    r = cur.execute("SELECT * FROM recorrencia WHERE id = %s", (rid,)).fetchone()
+    if not r:
+        raise HTTPException(404, "recorrência não encontrada")
+    dono = dono_do_alvo(cur, r["conta_id"], r["plastico_id"])
+    campos: dict = {k: getattr(body, k) for k in ("valor_centavos", "dia_mes", "descricao", "forma_pagamento", "ativa")}
+    if body.limpar_fim:
+        campos["fim"] = None
+    elif body.fim is not None:
+        campos["fim"] = body.fim
+    if body.favorecido_id or body.favorecido_nome or body.categoria_id:
+        fav, cat = resolver_favorecido_categoria(cur, dono, body.favorecido_id, body.favorecido_nome, body.categoria_id)
+        if fav:
+            campos["favorecido_id"] = fav
+        if body.categoria_id:
+            campos["categoria_id"] = cat
+    if r["plastico_id"] and body.forma_pagamento:
+        campos.pop("forma_pagamento")            # compra em cartão é sempre "cartão"
+    nova = atualizar(cur, "recorrencia", rid, campos, nulos={"fim"} if body.limpar_fim else frozenset())
+    ini = date.fromisoformat(body.a_partir_de + "-01") if body.a_partir_de else date.today().replace(day=1)
+    meses = {m["mes"] for m in cur.execute(
+        "SELECT DISTINCT date_trunc('month', data_competencia)::date AS mes FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (rid, ini)).fetchall()}
+    removidos = cur.execute("DELETE FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (rid, ini)).rowcount
+    refeitos = 0
+    if nova["ativa"]:
+        meses |= {ini}                    # refaz os meses que existiam e o mês de partida
+        for m in sorted(meses):
+            refeitos += gerar(GerarRecorrenciasIn(mes=m.strftime("%Y-%m")), cur, usuario)["criadas"]
+    return {**nova, "previstos_removidos": removidos, "previstos_gerados": refeitos}
+
+
 @router.delete("/recorrencias/{rid}")
 def excluir_recorrencia(rid: str, cur=Depends(get_db)):
     if not cur.execute("DELETE FROM recorrencia WHERE id = %s RETURNING id", (rid,)).fetchone():
@@ -270,7 +304,7 @@ def gerar(body: GerarRecorrenciasIn, cur=Depends(get_db), usuario: Usuario = Dep
         data = date(ini.year, ini.month, min(r["dia_mes"], fim.day))
         if data < r["inicio"] or (r["fim"] and data > r["fim"]):
             continue
-        if cur.execute("SELECT 1 FROM transacao WHERE recorrencia_id = %s AND data_competencia = %s", (r["id"], data)).fetchone():
+        if cur.execute("SELECT 1 FROM transacao WHERE recorrencia_id = %s AND data_competencia BETWEEN %s AND %s", (r["id"], ini, fim)).fetchone():
             continue
         b = TransacaoIn(tipo=r["tipo"], valor_centavos=r["valor_centavos"], data_competencia=data, conta_id=r["conta_id"],
                         plastico_id=r["plastico_id"], categoria_id=r["categoria_id"], favorecido_id=r["favorecido_id"],

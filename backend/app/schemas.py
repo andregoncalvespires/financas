@@ -221,5 +221,19 @@ class RecorrenciaIn(BaseModel):
     fim: Optional[date] = None
 
 
+class RecorrenciaPatch(BaseModel):
+    valor_centavos: Optional[int] = Field(default=None, gt=0)
+    dia_mes: Optional[int] = Field(default=None, ge=1, le=31)
+    categoria_id: Optional[UUID] = None
+    favorecido_id: Optional[UUID] = None
+    favorecido_nome: Optional[str] = None
+    descricao: Optional[str] = None
+    forma_pagamento: Optional[str] = None
+    ativa: Optional[bool] = None
+    fim: Optional[date] = None              # última data em que a recorrência vale
+    limpar_fim: bool = False                # volta a valer sem data final
+    a_partir_de: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}$")   # mês (AAAA-MM) em que a mudança começa; padrão: o mês atual
+
+
 class GerarRecorrenciasIn(BaseModel):
     mes: str = Field(pattern=r"^\d{4}-\d{2}$")

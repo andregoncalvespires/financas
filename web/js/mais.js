@@ -1,4 +1,4 @@
-import { h, GET, POST, PATCH, PUT_, DEL, brl, folha, aviso, acao, campo, campoFavorecido, limpar, vazio, parseValor, centavosParaCampo, hojeISO, mesISO, dataLonga, PAPEIS, FORMAS, confirmar, api } from './util.js';
+import { h, GET, POST, PATCH, PUT_, DEL, brl, folha, aviso, acao, campo, campoFavorecido, limpar, vazio, parseValor, centavosParaCampo, hojeISO, mesISO, somarMes, nomeMes, dataLonga, PAPEIS, FORMAS, confirmar, api } from './util.js';
 import { estado, carregarCadastros, destinos } from './form.js';
 import { VERSAO_APP } from './versao.js';
 
@@ -287,12 +287,57 @@ async function recorrencias(raiz, ctx) {
   limpar(raiz).append(voltar('Recorrentes'),
     h('p', { class: 'dica' }, 'Contas fixas (aluguel, escola, assinaturas…). Gere os previstos do mês: eles alimentam o "disponível de verdade".'),
     h('button', { class: 'btn', onclick: acao(async () => { const r = await POST('/api/recorrencias/gerar', { mes: mesISO() }); aviso(`${r.criadas} previsto(s) gerado(s) para este mês`); }) }, 'Gerar previstos deste mês'),
-    rs.length ? rs.map(r => h('div', { class: 'linha item sem-clique' },
-      h('div', { class: 'corpo' }, h('b', null, r.favorecido_nome || r.descricao || 'Sem nome'), h('small', null, `dia ${r.dia_mes} · ${r.conta_nome || r.cartao_nome + ' ·· ' + r.plastico_final}${r.categoria_nome ? ' · ' + r.categoria_nome : ''}`)),
-      h('div', null, h('b', { class: r.tipo === 'receita' ? 'pos' : 'neg' }, brl(r.valor_centavos)),
-        h('button', { class: 'btn link perigo', onclick: acao(async () => { if (await confirmar('Excluir esta recorrência? Os previstos já gerados permanecem.', 'Excluir', true)) { await DEL(`/api/recorrencias/${r.id}`); recarregar(); } }) }, 'Excluir')))) : vazio('Nenhuma recorrência.'),
+    rs.length ? rs.map(r => h('button', { class: 'linha item', onclick: () => editarRecorrencia(r, recarregar) },
+      h('div', { class: 'corpo' }, h('b', null, r.favorecido_nome || r.descricao || 'Sem nome', r.ativa ? null : h('small', { class: 'selo aviso' }, 'pausada')),
+        h('small', null, `dia ${r.dia_mes} · ${r.conta_nome || r.cartao_nome + ' ·· ' + r.plastico_final}${r.categoria_nome ? ' · ' + r.categoria_nome : ''}${r.fim ? ' · até ' + dataLonga(r.fim) : ''}`)),
+      h('b', { class: r.tipo === 'receita' ? 'pos' : 'neg' }, brl(r.valor_centavos)))) : vazio('Nenhuma recorrência.'),
     h('button', { class: 'btn sec', onclick: () => novaRecorrencia(recarregar) }, '+ Nova recorrência'));
 }
+// Altera a recorrência para os próximos meses: os previstos dela a partir do mês escolhido são refeitos; o confirmado não muda.
+function editarRecorrencia(r, recarregar) {
+  folha('Editar recorrência', (corpo, fechar) => {
+    const d = destinos().find(x => (r.conta_id ? x.tipo === 'conta' && x.id === r.conta_id : x.tipo === 'plastico' && x.id === r.plastico_id));
+    const dono = d ? d.dono : null;
+    const valor = h('input', { type: 'text', inputmode: 'decimal', class: 'valor-grande', value: centavosParaCampo(r.valor_centavos) });
+    const dia = h('input', { type: 'number', min: 1, max: 31, inputmode: 'numeric', value: r.dia_mes });
+    const cat = h('select', null);
+    const campoFav = campoFavorecido({ valor: r.favorecido_nome || '', dono: () => dono,
+      aoEscolher: (x) => { if (x.categoria_padrao_id && [...cat.options].some(o => o.value === x.categoria_padrao_id)) cat.value = x.categoria_padrao_id; } });
+    const forma = h('select', null, h('option', { value: '' }, '—'), Object.entries(FORMAS).map(([k, v]) => h('option', { value: k }, v)));
+    forma.value = r.forma_pagamento || '';
+    const fim = h('input', { type: 'date', value: r.fim ? String(r.fim).slice(0, 10) : '' });
+    const quando = h('select', null, h('option', { value: mesISO() }, `Deste mês em diante (${nomeMes(mesISO())})`), h('option', { value: somarMes(mesISO(), 1) }, `Só a partir do próximo mês (${nomeMes(somarMes(mesISO(), 1))})`));
+    limpar(cat).append(h('option', { value: '' }, 'Sem categoria'));
+    const cs = estado.categorias.filter(c => c.dono_id === dono && c.ativa && c.tipo === r.tipo);
+    for (const g of cs.filter(c => !c.pai_id)) {
+      const fs = cs.filter(c => c.pai_id === g.id);
+      if (fs.length) cat.append(h('optgroup', { label: g.nome }, fs.map(f => h('option', { value: f.id }, f.nome))));
+    }
+    cat.value = r.categoria_id || '';
+    const enviar = (extra, msg) => acao(async () => {
+      const v = parseValor(valor.value);
+      if (!(v > 0) || !(+dia.value >= 1 && +dia.value <= 31)) throw new Error('Informe um valor maior que zero e um dia entre 1 e 31.');
+      const nome = campoFav.input.value.trim();
+      const b = { valor_centavos: v, dia_mes: +dia.value, categoria_id: cat.value || undefined, favorecido_nome: nome || undefined, descricao: nome || undefined,
+        forma_pagamento: r.conta_id ? (forma.value || undefined) : undefined, a_partir_de: quando.value, ...(fim.value ? { fim: fim.value } : { limpar_fim: true }), ...extra };
+      const res = await PATCH(`/api/recorrencias/${r.id}`, b);
+      fechar(); aviso(msg(res)); recarregar();
+    });
+    corpo.append(
+      h('p', { class: 'dica' }, `${r.tipo === 'receita' ? 'Receita' : 'Despesa'} em ${r.conta_nome || r.cartao_nome + ' ·· ' + r.plastico_final}. Para trocar a conta ou o cartão, crie outra recorrência.`),
+      campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Favorecido', campoFav.el), campo('Categoria', cat),
+      r.conta_id ? campo('Forma de pagamento', forma) : null,
+      campo('Vale até (opcional)', fim, 'Deixe em branco para continuar todo mês.'),
+      campo('Aplicar', quando, 'Os lançamentos previstos desse período são refeitos com os dados novos. O que já foi confirmado não muda, e ajustes manuais feitos em previstos futuros são substituídos.'),
+      h('button', { class: 'btn', onclick: enviar(r.ativa ? {} : { ativa: true }, () => 'Recorrência atualizada') }, r.ativa ? 'Salvar' : 'Salvar e reativar'),
+      r.ativa ? h('button', { class: 'btn link', onclick: acao(async () => {
+        if (!(await confirmar(`Pausar esta recorrência? Os previstos de ${nomeMes(quando.value)} em diante serão removidos e novos não serão gerados até você reativar.`, 'Pausar'))) return;
+        const res = await PATCH(`/api/recorrencias/${r.id}`, { ativa: false, a_partir_de: quando.value });
+        fechar(); aviso(`Recorrência pausada (${res.previstos_removidos} previsto(s) removido(s))`); recarregar(); }) }, 'Pausar recorrência') : null,
+      h('button', { class: 'btn link perigo', onclick: acao(async () => { if (await confirmar('Excluir esta recorrência? Os previstos já gerados permanecem.', 'Excluir', true)) { await DEL(`/api/recorrencias/${r.id}`); fechar(); recarregar(); } }) }, 'Excluir'));
+  });
+}
+
 function novaRecorrencia(recarregar) {
   folha('Nova recorrência', (corpo, fechar) => {
     const dests = destinos();
