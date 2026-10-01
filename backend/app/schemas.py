@@ -237,3 +237,24 @@ class RecorrenciaPatch(BaseModel):
 
 class GerarRecorrenciasIn(BaseModel):
     mes: str = Field(pattern=r"^\d{4}-\d{2}$")
+
+
+class LinhaFaturaIn(BaseModel):
+    acao: Literal["criar", "atualizar", "conferir", "ignorar"]
+    transacao_id: Optional[UUID] = None             # lançamento do app que esta linha da fatura corresponde (atualizar/conferir)
+    data: date
+    descricao: str = Field(max_length=200)
+    favorecido_id: Optional[UUID] = None
+    favorecido_nome: Optional[str] = Field(default=None, max_length=120)
+    categoria_id: Optional[UUID] = None
+    plastico_id: Optional[UUID] = None
+    valor_centavos: int = Field(gt=0, description="valor absoluto; use eh_credito para estornos")
+    eh_credito: bool = False
+    parcela_atual: int = Field(default=1, ge=1, le=60)
+    parcelas_total: int = Field(default=1, ge=1, le=60)
+
+
+class ImportarFaturaIn(BaseModel):
+    cartao_id: UUID
+    vencimento: date
+    linhas: list[LinhaFaturaIn] = Field(max_length=600)

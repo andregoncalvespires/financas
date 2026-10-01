@@ -1,7 +1,7 @@
 // Service worker: casca do app disponível offline (rede primeiro, cache como reserva); /api nunca é guardado.
-const CACHE = 'fin-casca-v15';
+const CACHE = 'fin-casca-v17';
 const CASCA = ['/', '/index.html', '/styles.css', '/manifest.webmanifest', '/js/app.js', '/js/util.js', '/js/form.js', '/js/inicio.js',
-  '/js/capturar.js', '/js/lanc.js', '/js/cartoes.js', '/js/mais.js', '/js/orcamento.js', '/js/versao.js', '/icons/icon-192.png', '/icons/icon-512.png'];
+  '/js/capturar.js', '/js/lanc.js', '/js/cartoes.js', '/js/fatura-import.js', '/js/mais.js', '/js/orcamento.js', '/js/versao.js', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CASCA)).then(() => self.skipWaiting()));

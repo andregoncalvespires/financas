@@ -199,3 +199,16 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .grupo-eventos .lembrete { margin-top: 6px; }
 
 .resumo-titulo { margin: 0; text-transform: uppercase; font-size: .8rem; letter-spacing: .04em; color: var(--suave); }
+
+/* importar fatura */
+.imp-linha { background: var(--surf); border: 1px solid var(--borda); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: grid; gap: 6px; }
+.imp-topo { display: flex; align-items: center; gap: 10px; }
+.imp-topo .corpo { flex: 1; min-width: 0; }
+.imp-topo .corpo small { display: block; }
+.imp-topo b:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.imp-dif { margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--aviso-bg); color: var(--aviso); font-size: .9rem; }
+.imp-rodape { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; background: var(--bg); }
+.imp-rodape .btn { width: auto; min-width: 8rem; }
+.pos { color: var(--pos); } .neg { color: var(--neg); }
+.imp-linha .selo { justify-self: start; }
+.cartao > small.dica { display: block; }

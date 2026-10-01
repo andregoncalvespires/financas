@@ -63,6 +63,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Cartão de crédito**
 - Faturas com fecho e vencimento, compras a prestações e pagamento da fatura a partir de uma conta.
+- **Importar a fatura em PDF** (com ou sem palavra-passe): a aplicação lê as compras, compara com o que já lançou, mostra as diferenças de valor para decidir e só grava depois da sua conferência. Requer a leitura por IA ativada.
 - **Cartões adicionais** e virtuais: as compras de todos caem na fatura do titular. Um familiar convidado como portador vê apenas as suas próprias despesas.
 
 **Planeamento**

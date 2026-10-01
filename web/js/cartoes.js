@@ -1,6 +1,7 @@
 import { h, GET, POST, PATCH, DEL, brl, folha, aviso, acao, campo, limpar, vazio, dataCurta, dataLonga, parseValor, centavosParaCampo, hojeISO, confirmar } from './util.js';
 import { estado, carregarCadastros } from './form.js';
 import { detalhe } from './lanc.js';
+import { importarFatura } from './fatura-import.js';
 
 const TIPO = { plastico: 'Plástico', virtual: 'Virtual' };
 const rotuloCartao = (p) => `·· ${p.final} ${TIPO[p.tipo] || ''}`.trim();
@@ -26,7 +27,8 @@ function cartaoDono(k, recarregar) {
         h('small', { class: 'selo' }, `fecha dia ${k.dia_fechamento} · vence dia ${k.dia_vencimento}`)),
       h('small', null, `${ativos} cartão(ões)`)),
     !k.conta_pagamento_id ? h('p', { class: 'alertas' }, 'Sem conta de pagamento definida: as faturas desta conta de cartão não entram no "disponível de verdade". Toque em Editar.') : null,
-    h('div', { class: 'linha-botoes' }, h('button', { class: 'btn sec', onclick: () => editarCartao(k, recarregar) }, 'Editar conta de cartão')),
+    h('div', { class: 'linha-botoes' }, h('button', { class: 'btn sec', onclick: () => editarCartao(k, recarregar) }, 'Editar conta de cartão'),
+      h('button', { class: 'btn sec', onclick: () => importarFatura(k, recarregar) }, 'Importar fatura (PDF)')),
     h('h3', null, 'Cartões'),
     k.plasticos.map(p => linhaPlastico(k, p, recarregar)),
     h('button', { class: 'btn link', onclick: () => novoPlastico(k, recarregar) }, '+ Adicionar cartão (adicional)'),

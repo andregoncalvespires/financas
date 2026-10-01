@@ -27,7 +27,7 @@ export function destinos() {
   return lista;
 }
 
-function opcoesCategoria(dono, tipo) {
+export function opcoesCategoria(dono, tipo) {
   const cats = estado.categorias.filter(c => c.dono_id === dono && c.ativa && c.tipo === tipo);
   const grupos = cats.filter(c => !c.pai_id);
   return grupos.map(g => {

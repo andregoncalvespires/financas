@@ -63,6 +63,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Cartão de crédito**
 - Faturas com fechamento e vencimento, compras parceladas e pagamento da fatura a partir de uma conta.
+- **Importar a fatura em PDF** (com ou sem senha): o app lê as compras, compara com o que você já lançou, mostra as diferenças de valor para você decidir e só grava depois da sua conferência. Requer a leitura por IA ativada.
 - **Cartões adicionais** e virtuais: as compras de todos caem na fatura do titular. Um familiar convidado como portador vê só os próprios gastos.
 
 **Planejamento**

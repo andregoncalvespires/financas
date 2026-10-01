@@ -63,6 +63,7 @@ If something does not work, see [Common problems](#common-problems).
 
 **Credit cards**
 - Statements with closing and due dates, instalment purchases, and paying a statement from an account.
+- **Import the statement PDF** (with or without a password): the app reads the purchases, compares them with what you already entered, shows value differences for you to decide, and only saves after you review. Requires AI reading to be enabled.
 - **Additional and virtual cards**: everyone's purchases land on the owner's statement. A family member invited as a cardholder sees only their own spending.
 
 **Planning**

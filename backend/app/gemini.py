@@ -124,3 +124,83 @@ def _interpretar(resp: dict) -> tuple[Extracao, dict]:
         raise GeminiErro(f"resposta inesperada do modelo: {e.__class__.__name__}")
     uso = resp.get("usageMetadata", {})
     return ext, {"modelo": settings.gemini_model, "tokens_entrada": uso.get("promptTokenCount"), "tokens_saida": uso.get("candidatesTokenCount")}
+
+
+# ---------- fatura de cartão (PDF com várias páginas) ----------
+SCHEMA_FATURA = {
+    "type": "OBJECT",
+    "properties": {
+        "emissor": {"type": "STRING"},
+        "vencimento": {"type": "STRING"},
+        "fechamento": {"type": "STRING"},
+        "total_fatura": {"type": "NUMBER"},
+        "linhas": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+            "data": {"type": "STRING"},
+            "descricao": {"type": "STRING"},
+            "valor": {"type": "NUMBER"},
+            "valor_usd": {"type": "NUMBER"},
+            "parcela_atual": {"type": "INTEGER"},
+            "parcelas_total": {"type": "INTEGER"},
+            "final_cartao": {"type": "STRING"},
+            "tipo": {"type": "STRING", "enum": ["compra", "iof_exterior", "estorno_credito", "pagamento", "encargo", "outro"]},
+        }, "required": ["data", "descricao", "valor", "parcela_atual", "parcelas_total", "final_cartao", "tipo"]}},
+    },
+    "required": ["vencimento", "fechamento", "total_fatura", "linhas"],
+}
+
+PROMPT_FATURA = """Você lê a FATURA de um cartão de crédito brasileiro (PDF, possivelmente com várias páginas) e devolve os dados estruturados.
+
+Cabeçalho:
+- vencimento e fechamento: AAAA-MM-DD. fechamento = último dia do período de compras desta fatura (ou a data de fechamento informada).
+- total_fatura: valor total a pagar desta fatura, em reais, com ponto decimal.
+- emissor: nome do banco/emissor.
+
+linhas: UMA entrada para cada lançamento da seção de detalhamento (despesas, parcelamentos, créditos), na ordem em que aparecem, de TODOS os cartões (titular e adicionais). Não leia o resumo, o histórico de faturas, nem opções de pagamento como se fossem lançamentos.
+- data: AAAA-MM-DD. A fatura mostra só dia/mês: use o ano que faz a data ser anterior ou igual ao fechamento (compras de dezembro numa fatura de janeiro são do ano anterior).
+- descricao: o texto do estabelecimento exatamente como impresso (ex.: "SUPERMERCADOS BH"), sem a data e sem o valor.
+- valor: valor em reais, positivo para compras; NEGATIVO para créditos, estornos e pagamentos recebidos.
+- valor_usd: valor em dólar quando houver, senão 0.
+- parcela_atual / parcelas_total: "03/10" => 3 e 10. Sem parcelamento: 1 e 1.
+- final_cartao: 4 últimos dígitos do cartão da seção em que o lançamento aparece (o cabeçalho de cada seção traz o número mascarado). Se não houver, string vazia.
+- tipo: "compra" para compras e parcelas; "iof_exterior" para a linha de IOF de compra no exterior (que fica logo abaixo da compra em moeda estrangeira; NÃO some o valor na compra, mantenha como linha separada logo depois dela); "estorno_credito" para estornos/créditos; "pagamento" para pagamentos da fatura anterior; "encargo" para juros, multa, anuidade e tarifas; "outro" para o resto.
+- Linhas de cotação do dólar ("COTAÇÃO DOLAR...") não são lançamentos: ignore-as.
+- Não invente linhas. Não repita linhas de subtotal ("VALOR TOTAL").
+"""
+
+MOCK_FATURA: dict | None = None   # os testes sobrescrevem
+
+
+def extrair_fatura(dados: bytes) -> tuple[dict, dict]:
+    """Lê uma fatura em PDF. Retorna (dados brutos validados, metadados de uso)."""
+    if settings.gemini_mock:
+        return dict(MOCK_FATURA or {"vencimento": date.today().isoformat(), "fechamento": date.today().isoformat(), "total_fatura": 0, "linhas": []}), {"modelo": "mock"}
+    if not settings.gemini_api_key:
+        raise GeminiErro("GEMINI_API_KEY não configurada no servidor")
+    corpo = {
+        "contents": [{"parts": [
+            {"text": PROMPT_FATURA},
+            {"inline_data": {"mime_type": "application/pdf", "data": base64.b64encode(dados).decode()}},
+        ]}],
+        "generationConfig": {"responseMimeType": "application/json", "responseSchema": SCHEMA_FATURA, "temperature": 0, "maxOutputTokens": 32768},
+    }
+    url = ENDPOINT.format(modelo=settings.gemini_model)
+    ultimo = ""
+    for tentativa in range(3):
+        try:
+            r = httpx.post(url, json=corpo, headers={"x-goog-api-key": settings.gemini_api_key}, timeout=180)
+        except httpx.HTTPError as e:
+            ultimo = f"falha de rede: {e.__class__.__name__}"
+        else:
+            if r.status_code == 200:
+                resp = r.json()
+                try:
+                    out = json.loads(resp["candidates"][0]["content"]["parts"][0]["text"])
+                except (KeyError, IndexError, ValueError):
+                    raise GeminiErro("resposta inesperada do modelo (a fatura pode ser grande demais ou ilegível)")
+                uso = resp.get("usageMetadata", {})
+                return out, {"modelo": settings.gemini_model, "tokens_entrada": uso.get("promptTokenCount"), "tokens_saida": uso.get("candidatesTokenCount")}
+            ultimo = f"HTTP {r.status_code}: {r.text[:300]}"
+            if r.status_code not in (429, 500, 503):
+                break
+        time.sleep(2 * (tentativa + 1))
+    raise GeminiErro(ultimo)
