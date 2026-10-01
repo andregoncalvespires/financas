@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 from uuid import uuid4
 
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/api")
 SQL_TX = """
 SELECT t.id, t.tipo, t.estado, t.valor_centavos, t.data_competencia, t.data_caixa, t.conta_id, t.plastico_id, t.fatura_id,
        t.forma_pagamento, t.categoria_id, t.favorecido_id, t.descricao, t.numero_parcela, t.total_parcelas, t.parcelamento_id,
-       t.transferencia_id, t.origem, t.anexo_id, t.criado_por,
+       t.transferencia_id, t.recorrencia_id, t.origem, t.anexo_id, t.criado_por,
        c.nome AS conta_nome, pl.final AS plastico_final, pl.rotulo AS plastico_rotulo, k.nome AS cartao_nome,
        cat.nome AS categoria_nome, f.nome AS favorecido_nome, u.nome AS criado_por_nome,
        (SELECT c2.nome FROM transacao t2 JOIN conta c2 ON c2.id = t2.conta_id
@@ -192,9 +193,12 @@ def desfazer(tid: str, cur=Depends(get_db)):
 
 @router.delete("/transacoes/{tid}")
 def excluir(tid: str, todo_parcelamento: bool = False, cur=Depends(get_db)):
-    t = cur.execute("SELECT id, tipo, transferencia_id, parcelamento_id FROM transacao WHERE id = %s", (tid,)).fetchone()
+    t = cur.execute("SELECT id, tipo, transferencia_id, parcelamento_id, recorrencia_id, data_competencia FROM transacao WHERE id = %s", (tid,)).fetchone()
     if not t:
         raise HTTPException(404, "lançamento não encontrado")
+    if t["recorrencia_id"]:      # excluir uma ocorrência = pular aquele mês; sem isso a geração automática a recriaria
+        cur.execute("INSERT INTO recorrencia_pulada(recorrencia_id, mes, criado_por) VALUES (%s, date_trunc('month', %s::date)::date, app_uid()) ON CONFLICT DO NOTHING",
+                    (t["recorrencia_id"], t["data_competencia"]))
     if t["transferencia_id"]:
         n = cur.execute("DELETE FROM transacao WHERE transferencia_id = %s", (t["transferencia_id"],)).rowcount
         if n != 2:
@@ -287,6 +291,23 @@ def alterar_recorrencia(rid: str, body: RecorrenciaPatch, cur=Depends(get_db), u
     return {**nova, "previstos_removidos": removidos, "previstos_gerados": refeitos}
 
 
+@router.get("/recorrencias/{rid}/pulados")
+def meses_pulados(rid: str, cur=Depends(get_db)):
+    return [r["mes"] for r in cur.execute("SELECT mes FROM recorrencia_pulada WHERE recorrencia_id = %s ORDER BY mes", (rid,)).fetchall()]
+
+
+@router.delete("/recorrencias/{rid}/pulados/{mes}")
+def desfazer_pulo(rid: str, mes: str, cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Volta a valer naquele mês (AAAA-MM): remove a marca e gera o previsto do mês, se couber."""
+    if not re.fullmatch(r"\d{4}-\d{2}", mes):
+        raise HTTPException(422, "mês inválido (use AAAA-MM)")
+    ini, _ = mes_intervalo(mes)
+    if not cur.execute("DELETE FROM recorrencia_pulada WHERE recorrencia_id = %s AND mes = %s RETURNING mes", (rid, ini)).fetchone():
+        raise HTTPException(404, "esse mês não estava pulado")
+    gerados = gerar(GerarRecorrenciasIn(mes=mes), cur, usuario)["criadas"]
+    return {"ok": True, "previstos_gerados": gerados}
+
+
 @router.delete("/recorrencias/{rid}")
 def excluir_recorrencia(rid: str, cur=Depends(get_db)):
     if not cur.execute("DELETE FROM recorrencia WHERE id = %s RETURNING id", (rid,)).fetchone():
@@ -305,6 +326,8 @@ def gerar(body: GerarRecorrenciasIn, cur=Depends(get_db), usuario: Usuario = Dep
         if data < r["inicio"] or (r["fim"] and data > r["fim"]):
             continue
         if cur.execute("SELECT 1 FROM transacao WHERE recorrencia_id = %s AND data_competencia BETWEEN %s AND %s", (r["id"], ini, fim)).fetchone():
+            continue
+        if cur.execute("SELECT 1 FROM recorrencia_pulada WHERE recorrencia_id = %s AND mes = %s", (r["id"], ini)).fetchone():
             continue
         b = TransacaoIn(tipo=r["tipo"], valor_centavos=r["valor_centavos"], data_competencia=data, conta_id=r["conta_id"],
                         plastico_id=r["plastico_id"], categoria_id=r["categoria_id"], favorecido_id=r["favorecido_id"],

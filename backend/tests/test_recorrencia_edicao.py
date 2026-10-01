@@ -69,3 +69,43 @@ def test_editar_recorrencia_de_outra_pessoa_e_recusado(nova_pessoa):
     assert b.patch(f"/api/recorrencias/{rec['id']}", json={"valor_centavos": 1}).status_code == 404
     assert a.patch(f"/api/recorrencias/{rec['id']}", json={"valor_centavos": 0}).status_code == 422
     assert a.get("/api/recorrencias").json()[0]["valor_centavos"] == 10000
+
+
+def test_excluir_ocorrencia_pula_o_mes_e_nao_volta(nova_pessoa):
+    p = nova_pessoa("pl")
+    rec, _ = nova(p)
+    fev = next(t for t in p.get("/api/transacoes?de=2040-02-01&ate=2040-02-28").json() if t["descricao"] == "Conta de luz")
+    assert fev["recorrencia_id"] == rec["id"]
+    assert p.delete(f"/api/transacoes/{fev['id']}").status_code == 200
+    assert p.get(f"/api/recorrencias/{rec['id']}/pulados").json() == ["2040-02-01"]
+    assert p.post("/api/recorrencias/gerar", json={"mes": "2040-02"}).json()["criadas"] == 0          # não é recriado
+    assert [x[0] for x in previstos(p, "Conta de luz")] == ["2040-01-10", "2040-03-10"]               # os outros meses seguem
+    # editar a recorrência refaz os previstos, mas respeita o mês pulado
+    p.patch(f"/api/recorrencias/{rec['id']}", json={"valor_centavos": 12000, "a_partir_de": "2040-01"})
+    assert [x[0] for x in previstos(p, "Conta de luz")] == ["2040-01-10", "2040-03-10"]
+    # desfazer: o mês volta a ser gerado
+    r = p.delete(f"/api/recorrencias/{rec['id']}/pulados/2040-02")
+    assert r.status_code == 200 and r.json()["previstos_gerados"] == 1
+    assert [x[0] for x in previstos(p, "Conta de luz")] == ["2040-01-10", "2040-02-10", "2040-03-10"]
+    assert p.get(f"/api/recorrencias/{rec['id']}/pulados").json() == []
+    assert p.delete(f"/api/recorrencias/{rec['id']}/pulados/2040-02").status_code == 404
+    assert p.delete(f"/api/recorrencias/{rec['id']}/pulados/fev").status_code == 422
+
+
+def test_excluir_ocorrencia_ja_confirmada_tambem_pula(nova_pessoa):
+    p = nova_pessoa("pc")
+    rec, _ = nova(p)
+    jan = next(t for t in p.get("/api/transacoes?de=2040-01-01&ate=2040-01-31").json() if t["descricao"] == "Conta de luz")
+    p.post(f"/api/transacoes/{jan['id']}/confirmar")
+    assert p.delete(f"/api/transacoes/{jan['id']}").status_code == 200
+    assert p.post("/api/recorrencias/gerar", json={"mes": "2040-01"}).json()["criadas"] == 0
+
+
+def test_meses_pulados_respeitam_privacidade(nova_pessoa):
+    a, b = nova_pessoa("qa"), nova_pessoa("qb")
+    rec, _ = nova(a)
+    t = next(t for t in a.get("/api/transacoes?de=2040-01-01&ate=2040-01-31").json() if t["descricao"] == "Conta de luz")
+    a.delete(f"/api/transacoes/{t['id']}")
+    assert b.get(f"/api/recorrencias/{rec['id']}/pulados").json() == []
+    assert b.delete(f"/api/recorrencias/{rec['id']}/pulados/2040-01").status_code == 404
+    assert a.get(f"/api/recorrencias/{rec['id']}/pulados").json() == ["2040-01-01"]

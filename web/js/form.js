@@ -206,8 +206,10 @@ export async function excluirTransacao(t) {
     }));
     if (!r) return false;
     todo = r === 'todas';
-  } else if (!(await confirmar(t.transferencia_id ? 'Excluir esta transferência? As duas pontas (origem e destino) serão apagadas.' : 'Excluir este lançamento?', 'Excluir', true))) return false;
+  } else if (!(await confirmar(t.transferencia_id ? 'Excluir esta transferência? As duas pontas (origem e destino) serão apagadas.'
+      : t.recorrencia_id ? 'Este lançamento vem de uma recorrência. Excluir só este mês? A recorrência continua valendo nos próximos meses (você pode desfazer em Mais → Lançamentos recorrentes).'
+      : 'Excluir este lançamento?', t.recorrencia_id ? 'Excluir só este mês' : 'Excluir', true))) return false;
   await DEL(`/api/transacoes/${t.id}${todo ? '?todo_parcelamento=true' : ''}`);
-  aviso('Lançamento excluído');
+  aviso(t.recorrencia_id ? 'Mês pulado na recorrência' : 'Lançamento excluído');
   return true;
 }

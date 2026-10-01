@@ -314,6 +314,18 @@ function editarRecorrencia(r, recarregar) {
       if (fs.length) cat.append(h('optgroup', { label: g.nome }, fs.map(f => h('option', { value: f.id }, f.nome))));
     }
     cat.value = r.categoria_id || '';
+    const puladosBox = h('div');
+    const desenharPulados = async () => {
+      let ms = [];
+      try { ms = await GET(`/api/recorrencias/${r.id}/pulados`); } catch { /* sem a lista, segue sem ela */ }
+      limpar(puladosBox);
+      if (!ms.length) return;
+      puladosBox.append(h('h3', null, 'Meses pulados'), h('small', { class: 'dica' }, 'Nestes meses esta recorrência não gera lançamento (você excluiu a ocorrência).'),
+        ms.map(x => { const mes = String(x).slice(0, 7); return h('div', { class: 'linha item sem-clique' }, h('div', { class: 'corpo' }, h('b', null, nomeMes(mes))),
+          h('button', { class: 'btn link', onclick: acao(async () => { await DEL(`/api/recorrencias/${r.id}/pulados/${mes}`); aviso(`${nomeMes(mes)} voltou a valer`); await desenharPulados(); recarregarLista(); }) }, 'Voltar a valer')); }));
+    };
+    const recarregarLista = () => recarregar();
+    desenharPulados();
     const enviar = (extra, msg) => acao(async () => {
       const v = parseValor(valor.value);
       if (!(v > 0) || !(+dia.value >= 1 && +dia.value <= 31)) throw new Error('Informe um valor maior que zero e um dia entre 1 e 31.');
@@ -328,6 +340,7 @@ function editarRecorrencia(r, recarregar) {
       campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Favorecido', campoFav.el), campo('Categoria', cat),
       r.conta_id ? campo('Forma de pagamento', forma) : null,
       campo('Vale até (opcional)', fim, 'Deixe em branco para continuar todo mês.'),
+      puladosBox,
       campo('Aplicar', quando, 'Os lançamentos previstos desse período são refeitos com os dados novos. O que já foi confirmado não muda, e ajustes manuais feitos em previstos futuros são substituídos.'),
       h('button', { class: 'btn', onclick: enviar(r.ativa ? {} : { ativa: true }, () => 'Recorrência atualizada') }, r.ativa ? 'Salvar' : 'Salvar e reativar'),
       r.ativa ? h('button', { class: 'btn link', onclick: acao(async () => {
@@ -344,6 +357,11 @@ function novaRecorrencia(recarregar) {
     const tipo = h('select', null, h('option', { value: 'despesa' }, 'Despesa'), h('option', { value: 'receita' }, 'Receita'));
     const valor = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0,00' });
     const dia = h('input', { type: 'number', min: 1, max: 31, inputmode: 'numeric', placeholder: '10' });
+    // primeira cobrança: se o dia deste mês já chegou, o mais comum é o lançamento já estar no saldo, então a sugestão é o próximo mês
+    const primeira = h('select', null, h('option', { value: 'este' }, `Este mês (${nomeMes(mesISO())})`), h('option', { value: 'proximo' }, `Próximo mês (${nomeMes(somarMes(mesISO(), 1))})`));
+    let mexeu = false;
+    primeira.addEventListener('change', () => { mexeu = true; });
+    dia.addEventListener('input', () => { if (!mexeu) primeira.value = +dia.value >= 1 && +dia.value <= new Date().getDate() ? 'proximo' : 'este'; });
     const campoFav = campoFavorecido({ placeholder: 'Ex.: Condomínio', dono: () => { const d = dests.find(x => x.valor === dest.value); return d ? d.dono : null; },
       aoEscolher: (r) => { if (r.categoria_padrao_id && !cat.value && [...cat.options].some(o => o.value === r.categoria_padrao_id)) cat.value = r.categoria_padrao_id; } });
     const fav = campoFav.input;
@@ -361,14 +379,16 @@ function novaRecorrencia(recarregar) {
       }
     };
     dest.addEventListener('change', montar); tipo.addEventListener('change', montar); montar();
-    corpo.append(campo('Tipo', tipo), campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Favorecido', campoFav.el), campo('Conta ou cartão', dest), campo('Categoria', cat), campo('Forma de pagamento', forma),
+    corpo.append(campo('Tipo', tipo), campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Primeira cobrança', primeira, 'Se o dia deste mês já chegou e o valor já está no seu saldo, deixe "Próximo mês". Escolha "Este mês" para que ele apareça como pendente agora.'), campo('Favorecido', campoFav.el), campo('Conta ou cartão', dest), campo('Categoria', cat), campo('Forma de pagamento', forma),
       h('button', { class: 'btn', onclick: acao(async () => {
         const v = parseValor(valor.value), d = dests.find(x => x.valor === dest.value);
         if (!(v > 0) || !dia.value || !d) throw new Error('Informe valor, dia e conta/cartão.');
         const b = { tipo: tipo.value, valor_centavos: v, dia_mes: +dia.value, favorecido_nome: fav.value.trim() || null, categoria_id: cat.value || null,
           forma_pagamento: d.tipo === 'plastico' ? 'cartao' : (forma.value || null), descricao: fav.value.trim() || null };
         if (d.tipo === 'plastico') b.plastico_id = d.id; else b.conta_id = d.id;
+        b.inicio = primeira.value === 'proximo' ? `${somarMes(mesISO(), 1)}-01` : `${mesISO()}-01`;
         await POST('/api/recorrencias', b);
+        try { await POST('/api/recorrencias/gerar', { mes: mesISO() }); } catch { /* a geração automática do Início tenta de novo */ }
         fechar(); aviso('Recorrência criada'); recarregar();
       }) }, 'Criar'));
   });
