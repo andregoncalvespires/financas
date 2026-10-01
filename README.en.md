@@ -147,7 +147,7 @@ docker compose up -d
 ```
 
 - Your data is not touched. Database changes are applied automatically at startup and **only add things**.
-- `docker-compose.yml` uses `:1`, which follows the compatible updates of version 1. To pin a version, change it, for example, to `:1.9.0` on the `x-imagem` line.
+- `docker-compose.yml` uses `:latest`, which always follows the newest release. Before a new major version (2.0, for example), read the [CHANGELOG](CHANGELOG.md): it may require action from you. To pin a version, change it, for example, to `:1.9.0` on the `x-imagem` line.
 - Read the [CHANGELOG](CHANGELOG.md) before updating: changes that need action from you are highlighted there. Under More → About the app you can see the version in use and what is new; if the server is newer than the app open on your phone, a button to update appears.
 - **Rolling back:** restore the backup you took before and use the previous version. Rolling back only the image, without restoring the database, may not work if the new version changed its structure.
 - Avoid automatic update tools (such as Watchtower): database changes happen at startup, and a backup beforehand matters.

@@ -147,7 +147,7 @@ docker compose up -d
 ```
 
 - Os seus dados não são tocados. As alterações à base de dados são aplicadas sozinhas no arranque e **apenas acrescentam**.
-- O `docker-compose.yml` usa `:1`, que recebe as atualizações compatíveis da versão 1. Para fixar uma versão, altere, por exemplo, para `:1.9.0` na linha `x-imagem`.
+- O `docker-compose.yml` usa `:latest`, que acompanha sempre a versão mais recente. Antes de uma versão principal nova (a 2.0, por exemplo), leia o [CHANGELOG](CHANGELOG.md): pode exigir ação da sua parte. Para fixar uma versão, altere, por exemplo, para `:1.9.0` na linha `x-imagem`.
 - Antes de atualizar, leia o [CHANGELOG](CHANGELOG.md): as alterações que exijam alguma ação sua estão destacadas aí. Em Mais → Sobre o aplicativo vê a versão em uso e as novidades; se o servidor for mais recente do que a aplicação aberta no telemóvel, aparece o botão para atualizar.
 - **Voltar atrás:** restaure a cópia de segurança feita antes e use a versão anterior. Voltar apenas a imagem, sem restaurar a base de dados, pode não funcionar se a nova versão alterou a estrutura desta.
 - Evite ferramentas de atualização automática (como o Watchtower): as alterações à base de dados acontecem no arranque, e uma cópia de segurança antes é importante.

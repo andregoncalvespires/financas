@@ -23,7 +23,7 @@ x-configuracao: &configuracao
   # CAPTURAS_POR_DIA: "30"           # limite de leituras de comprovante por pessoa a cada 24 h
 
 # A partir daqui não precisa mexer em nada.
-x-imagem: &imagem ghcr.io/andregoncalvespires/financas:1
+x-imagem: &imagem ghcr.io/andregoncalvespires/financas:latest
 
 services:
   # Roda uma vez: gera e guarda as senhas do banco e o segredo dos códigos de login.

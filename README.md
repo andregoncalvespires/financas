@@ -147,7 +147,7 @@ docker compose up -d
 ```
 
 - Seus dados não são tocados. As mudanças no banco são aplicadas sozinhas na inicialização e **só acrescentam**.
-- O `docker-compose.yml` usa `:1`, que recebe as atualizações compatíveis da versão 1. Para fixar uma versão, troque por exemplo para `:1.9.0` na linha `x-imagem`.
+- O `docker-compose.yml` usa `:latest`, que acompanha sempre a versão mais recente. Antes de uma versão principal nova (a 2.0, por exemplo), leia o [CHANGELOG](CHANGELOG.md): ela pode exigir ação sua. Para fixar uma versão, troque por exemplo para `:1.9.0` na linha `x-imagem`.
 - Antes de atualizar, leia o [CHANGELOG](CHANGELOG.md): mudanças que exijam alguma ação sua ficam destacadas lá. Em Mais → Sobre o aplicativo você vê a versão em uso e as novidades; se o servidor estiver mais novo que o app aberto no celular, aparece o botão para atualizar.
 - **Voltar atrás:** restaure o backup feito antes e use a versão anterior. Voltar só a imagem, sem restaurar o banco, pode não funcionar se a versão nova alterou a estrutura dele.
 - Evite ferramentas de atualização automática (como o Watchtower): as mudanças no banco acontecem na inicialização, e um backup antes é importante.
