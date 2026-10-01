@@ -1,6 +1,7 @@
 """Importação de fatura de cartão em PDF: lê com IA, compara com o que já foi lançado e deixa a pessoa conferir antes de gravar."""
 import io
 import json
+from calendar import monthrange
 import re
 from datetime import date, timedelta
 from difflib import SequenceMatcher
@@ -231,8 +232,11 @@ def aplicar(body: ImportarFaturaIn, cur=Depends(get_db), usuario: Usuario = Depe
         raise HTTPException(422, "esta conta de cartão não tem cartão cadastrado")
     fat = cur.execute("SELECT id, status, data_vencimento, data_fechamento FROM fatura WHERE cartao_id = %s AND data_vencimento = %s", (cartao, body.vencimento)).fetchone()
     if not fat and any(l.acao == "criar" for l in body.linhas):
-        # a fatura ainda não existe no app: cria pelo fechamento mais recente e confere se bate com o vencimento do PDF
-        ref = min((l.data for l in body.linhas if l.acao == "criar"), default=body.vencimento)
+        # a fatura ainda não existe no app: cria a partir do VENCIMENTO do PDF (nunca da data das compras, que podem ser de parcelas antigas)
+        k = cur.execute("SELECT dia_fechamento, dia_vencimento FROM cartao WHERE id = %s", (cartao,)).fetchone()
+        v = body.vencimento
+        mes_fech = v if k["dia_vencimento"] > k["dia_fechamento"] else add_months(v.replace(day=1), -1)
+        ref = mes_fech.replace(day=min(k["dia_fechamento"], monthrange(mes_fech.year, mes_fech.month)[1]))
         f = cur.execute("SELECT * FROM fatura_para_compra(%s, %s)", (principal, ref)).fetchone()
         fat = cur.execute("SELECT id, status, data_vencimento, data_fechamento FROM fatura WHERE id = %s", (f["fatura_id"],)).fetchone()
         if fat["data_vencimento"] != body.vencimento:

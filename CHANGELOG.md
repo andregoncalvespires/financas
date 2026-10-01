@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.13.3 — 2026-10-01
+- **Corrige a importação de fatura nova com parcelas antigas.** Quando a fatura ainda não existia no app, o destino era escolhido pela data da compra mais antiga da lista (por exemplo, uma parcela de 2025) e a gravação falhava com "o vencimento da fatura não bate com o do app". Agora o destino vem sempre do **vencimento do PDF**.
+
 ## 1.13.2 — 2026-10-01
 - **Importar fatura: valores sem confusão.** A conferência mostra os valores como na fatura do banco (compras positivas; créditos e estornos aparecem como "crédito −R$ …") e a diferença de valor vem em texto ("R$ 4,33 a mais na fatura"). Ao gravar, nada muda: cada compra continua entrando como despesa do cartão.
 - **Importar fatura: categorias.** A IA agora sugere a categoria de cada compra (quando a loja ainda é nova para você), além do que o app já sabia pelo histórico e pelo favorecido. Ao trocar a categoria de uma linha, as outras linhas da mesma loja acompanham. Depois de gravar, o app aprende a categoria de cada favorecido, então nas próximas faturas a maioria já vem preenchida.

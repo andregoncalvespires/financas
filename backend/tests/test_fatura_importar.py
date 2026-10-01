@@ -155,3 +155,22 @@ def test_parcelas_futuras_previstas_nao_mexem_na_fatura_atual_e_confirmam_na_pro
          "valor_centavos": l["valor_centavos"], "parcela_atual": 4, "parcelas_total": 10}]})
     t4 = next(t for t in a.get("/api/transacoes", params={"cartao_id": k["id"], "limite": 100}).json() if t["descricao"] == "LOJA XYZ" and t["numero_parcela"] == 4)
     assert t4["estado"] == "confirmado"
+
+
+def test_fatura_nova_com_parcelas_antigas_usa_o_vencimento_do_pdf(nova_pessoa):
+    """Regressão: com a fatura ainda inexistente, as compras de parcelas antigas (2025) não podem definir a fatura de destino."""
+    a = nova_pessoa("fat2")
+    cc = conta(a, "Corrente", 900000)
+    k = a.post("/api/cartoes", json={"nome": "Visa", "bandeira": "visa", "dia_fechamento": 28, "dia_vencimento": 4,
+                                     "conta_pagamento_id": cc["id"], "limite_centavos": 800000, "final_principal": "1111"}).json()
+    gemini.MOCK_FATURA = {"emissor": "X", "vencimento": "2026-10-04", "fechamento": "2026-09-28", "total_fatura": 150.0, "linhas": [
+        {"data": "2025-11-15", "descricao": "LOJA ANTIGA", "valor": 100.00, "parcela_atual": 11, "parcelas_total": 12, "final_cartao": "1111", "tipo": "compra"},
+        {"data": "2026-09-10", "descricao": "PADARIA", "valor": 50.00, "parcela_atual": 1, "parcelas_total": 1, "final_cartao": "1111", "tipo": "compra"}]}
+    p = a.post("/api/faturas/importar/ler", files={"arquivo": ("f.pdf", pdf_bytes(), "application/pdf")}, data={"cartao_id": k["id"], "senha": ""}).json()
+    linhas = [{"acao": "criar", "data": l["data"], "descricao": l["descricao"], "favorecido_nome": l["favorecido_nome"], "plastico_id": l["plastico_id"],
+               "valor_centavos": l["valor_centavos"], "parcela_atual": l["parcela_atual"], "parcelas_total": l["parcelas_total"], "criar_futuras": True} for l in p["linhas"]]
+    r = a.post("/api/faturas/importar/aplicar", json={"cartao_id": k["id"], "vencimento": "2026-10-04", "linhas": linhas})
+    assert r.status_code == 200, r.text
+    fats = {f["data_vencimento"]: f for f in a.get(f"/api/cartoes/{k['id']}/faturas").json()}
+    assert fats["2026-10-04"]["total"] == -15000 and fats["2026-11-04"]["total"] == -10000      # parcela 12/12 na fatura seguinte
+    assert all(t["data_caixa"] == "2026-10-04" for t in a.get("/api/transacoes", params={"cartao_id": k["id"], "estado": "confirmado", "limite": 50}).json())
