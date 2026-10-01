@@ -5,13 +5,19 @@ on:
   push:
     tags: ["v*.*.*"]
   workflow_dispatch:
+    inputs:
+      criar_release_da_tag:
+        description: "Só cria a Release (sem rebuild) para uma tag que já existe, ex.: v1.9.0"
+        required: false
+        default: ""
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
   testes:
+    if: ${{ github.event.inputs.criar_release_da_tag == '' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -67,3 +73,29 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  release:
+    needs: [imagem]
+    if: ${{ always() && (needs.imagem.result == 'success' || github.event.inputs.criar_release_da_tag != '') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.criar_release_da_tag || github.ref }}
+      - name: Criar a Release com as notas do CHANGELOG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.criar_release_da_tag || github.ref_name }}
+        run: |
+          versao="${TAG#v}"
+          awk -v v="$versao" '/^## /{ if (achou) exit; if (index($0, "## " v " ") == 1 || $0 == "## " v) { achou=1; next } } achou' CHANGELOG.md > notas.md
+          test -s notas.md || { echo "Sem notas para $versao no CHANGELOG.md"; exit 1; }
+          {
+            echo
+            echo "Imagem: \`ghcr.io/${GITHUB_REPOSITORY}:${versao}\`"
+          } >> notas.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file notas.md
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notas.md
+          fi
