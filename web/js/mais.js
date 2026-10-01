@@ -291,7 +291,7 @@ async function recorrencias(raiz, ctx) {
       h('div', { class: 'corpo' }, h('b', null, r.favorecido_nome || r.descricao || 'Sem nome', r.ativa ? null : h('small', { class: 'selo aviso' }, 'pausada')),
         h('small', null, `dia ${r.dia_mes} · ${r.conta_nome || r.cartao_nome + ' ·· ' + r.plastico_final}${r.categoria_nome ? ' · ' + r.categoria_nome : ''}${r.fim ? ' · até ' + dataLonga(r.fim) : ''}`)),
       h('b', { class: r.tipo === 'receita' ? 'pos' : 'neg' }, brl(r.valor_centavos)))) : vazio('Nenhuma recorrência.'),
-    h('button', { class: 'btn sec', onclick: () => novaRecorrencia(recarregar) }, '+ Nova recorrência'));
+    h('button', { class: 'fab', 'aria-label': 'Nova recorrência', onclick: () => novaRecorrencia(recarregar) }, '+'));
 }
 // Altera a recorrência para os próximos meses: os previstos dela a partir do mês escolhido são refeitos; o confirmado não muda.
 function editarRecorrencia(r, recarregar) {
