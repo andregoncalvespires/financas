@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..deps import Usuario, get_db, usuario_atual
 from ..schemas import GerarRecorrenciasIn, RecorrenciaIn, TransacaoIn, TransacaoPatch, TransferenciaIn
@@ -59,6 +59,15 @@ def alterar(tid: str, body: TransacaoPatch, cur=Depends(get_db)):
         raise HTTPException(404, "lançamento não encontrado")
     if t["transferencia_id"] and body.estado:
         raise HTTPException(422, "confirme a transferência pelo botão de confirmar (as duas pontas mudam juntas)")
+    if t["transferencia_id"] and (body.valor_centavos or body.data_caixa) and not (body.conta_id or body.data_competencia):
+        if t["estado"] != "previsto":
+            raise HTTPException(422, "só transferências previstas podem ser ajustadas; volte para previsto antes")
+        n = cur.execute(f"UPDATE transacao SET valor_centavos = {SQL_NOVO_VALOR}, data_caixa = COALESCE(%(d)s, data_caixa), "
+                        "data_competencia = COALESCE(%(d)s, data_competencia) WHERE transferencia_id = %(tf)s AND estado = 'previsto'",
+                        {"v": body.valor_centavos, "d": body.data_caixa, "tf": t["transferencia_id"]}).rowcount
+        if n != 2:
+            raise HTTPException(403, "você não pode ajustar os dois lados desta transferência")
+        return cur.execute(SQL_TX + " WHERE t.id = %s", (tid,)).fetchone()
     if t["tipo"] in ("transferencia", "pagamento_fatura") and (body.valor_centavos or body.conta_id or body.data_competencia):
         raise HTTPException(422, "exclua e recrie transferências e pagamentos de fatura para alterar valor, conta ou data")
     dono = dono_do_alvo(cur, t["conta_id"], t["plastico_id"])
@@ -93,27 +102,34 @@ def alterar(tid: str, body: TransacaoPatch, cur=Depends(get_db)):
 
 
 class ConfirmarIn(BaseModel):
-    data_caixa: date | None = None      # data em que o dinheiro realmente se moveu (extrato); vazio mantém a prevista
+    data_caixa: date | None = None          # data em que o dinheiro realmente se moveu (extrato); vazio mantém a prevista
+    valor_centavos: int | None = Field(default=None, gt=0)   # valor real (ex.: conta de luz); vazio mantém o previsto
+
+
+# o sinal de cada lançamento (despesa/saída negativo, receita/entrada positivo) é preservado ao trocar o valor
+SQL_NOVO_VALOR = "CASE WHEN %(v)s::bigint IS NULL THEN valor_centavos WHEN valor_centavos < 0 THEN -%(v)s::bigint ELSE %(v)s::bigint END"
 
 
 @router.post("/transacoes/{tid}/confirmar")
 def confirmar(tid: str, body: ConfirmarIn | None = None, cur=Depends(get_db)):
     dia = body.data_caixa if body else None
+    valor = body.valor_centavos if body else None
     if dia and dia > date.today() + timedelta(days=1):
         raise HTTPException(422, "a data de efetivação não pode estar no futuro")
     t = cur.execute("SELECT transferencia_id, plastico_id FROM transacao WHERE id = %s", (tid,)).fetchone()
-    if dia and t and t["plastico_id"]:
-        raise HTTPException(422, "compras no cartão seguem o vencimento da fatura; a data não pode ser alterada")
+    if (dia or valor) and t and t["plastico_id"]:
+        raise HTTPException(422, "compras no cartão seguem a fatura; valor e data não podem ser alterados aqui")
+    sets = f"estado = 'confirmado', data_caixa = COALESCE(%(d)s, data_caixa), valor_centavos = {SQL_NOVO_VALOR}"
     if t and t["transferencia_id"]:      # as duas pontas da transferência são confirmadas juntas
-        n = cur.execute("UPDATE transacao SET estado = 'confirmado', data_caixa = COALESCE(%s, data_caixa) "
-                        "WHERE transferencia_id = %s AND estado = 'previsto'", (dia, t["transferencia_id"])).rowcount
+        n = cur.execute(f"UPDATE transacao SET {sets} WHERE transferencia_id = %(tf)s AND estado = 'previsto'",
+                        {"d": dia, "v": valor, "tf": t["transferencia_id"]}).rowcount
         if n == 0:
             raise HTTPException(404, "lançamento previsto não encontrado")
         if n != 2:
             raise HTTPException(403, "você não pode confirmar os dois lados desta transferência")
         return cur.execute(SQL_TX + " WHERE t.id = %s", (tid,)).fetchone()
-    r = cur.execute("UPDATE transacao SET estado = 'confirmado', data_caixa = COALESCE(%s, data_caixa) "
-                    "WHERE id = %s AND estado = 'previsto' RETURNING id", (dia, tid)).fetchone()
+    r = cur.execute(f"UPDATE transacao SET {sets} WHERE id = %(id)s AND estado = 'previsto' RETURNING id",
+                    {"d": dia, "v": valor, "id": tid}).fetchone()
     if not r:
         raise HTTPException(404, "lançamento previsto não encontrado")
     return cur.execute(SQL_TX + " WHERE t.id = %s", (tid,)).fetchone()

@@ -1,4 +1,4 @@
-import { h, GET, POST, PATCH, brl, aviso, acao, mesISO, somarMes, nomeMes, dataCurta, FORMAS, vazio, limpar, dataEfetivacao } from './util.js';
+import { h, GET, POST, PATCH, brl, aviso, acao, mesISO, somarMes, nomeMes, dataCurta, FORMAS, vazio, limpar, efetivar } from './util.js';
 import { estado } from './form.js';
 import { pagarFatura } from './cartoes.js';
 
@@ -111,6 +111,6 @@ function blocoEventos(l, recarregar) {
         h('div', { class: 'corpo' }, h('b', null, titulo), h('small', null, sub)),
         h('b', { class: transf ? '' : i.valor_centavos < 0 ? 'neg' : 'pos' }, brl(i.valor_centavos)),
         fat ? h('button', { class: 'btn mini-btn', onclick: () => pagarFatura({ nome: i.cartao_nome, conta_pagamento_id: i.conta_pagamento_id }, i, recarregar) }, 'Pagar')
-            : h('button', { class: 'btn mini-btn sec', onclick: acao(async () => { const dia = await dataEfetivacao({ titulo, valor: brl(i.valor_centavos), prevista: i.data, rotulo: transf ? 'Fiz' : i.valor_centavos < 0 ? 'Paguei' : 'Recebi' }); if (!dia) return; await POST(`/api/transacoes/${i.id}/confirmar`, { data_caixa: dia }); aviso(transf ? 'Transferência confirmada' : 'Confirmado'); recarregar(); }) }, transf ? 'Fiz' : i.valor_centavos < 0 ? 'Paguei' : 'Recebi'));
+            : h('button', { class: 'btn mini-btn sec', onclick: acao(async () => { const r = await efetivar({ id: i.id, titulo, valor_centavos: i.valor_centavos, prevista: i.data, rotulo: transf ? 'Fiz' : i.valor_centavos < 0 ? 'Paguei' : 'Recebi' }); if (!r) return; aviso(r === 'ajustado' ? 'Previsão ajustada' : transf ? 'Transferência confirmada' : 'Confirmado'); recarregar(); }) }, transf ? 'Fiz' : i.valor_centavos < 0 ? 'Paguei' : 'Recebi'));
     }) : vazio(`Nada pendente nos próximos ${dias} dias.`));
 }

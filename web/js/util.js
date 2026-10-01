@@ -146,21 +146,33 @@ export function confirmar(texto, rotulo = 'Confirmar', perigo = false) {
   });
 }
 
-// Pergunta a data em que o dinheiro realmente se moveu (a do extrato). Resolve com 'AAAA-MM-DD' ou null se cancelar.
-// Sugere a data prevista quando já passou; se for futura, sugere hoje.
-export function dataEfetivacao({ titulo, valor, prevista, rotulo = 'Confirmar' }) {
+// Efetiva um lançamento previsto: pergunta o valor real e a data em que aconteceu (a do extrato) e confirma.
+// "Só ajustar a previsão" corrige valor e data sem efetivar (a data pode ser futura). Não é usado para compras no cartão.
+// Sugere a data prevista quando já passou; se for futura, sugere hoje. Devolve 'confirmado', 'ajustado' ou null (cancelou).
+export function efetivar({ id, titulo, valor_centavos, prevista, rotulo = 'Confirmar' }) {
   return new Promise((res) => {
     const hoje = hojeISO();
-    const prev = prevista ? String(prevista).slice(0, 10) : '';
-    const campoData = h('input', { type: 'date', value: prev && prev <= hoje ? prev : hoje, max: hoje, required: true });
-    folha('Data da efetivação', (corpo, fechar) => {
+    const prev = prevista ? String(prevista).slice(0, 10) : hoje;
+    const campoValor = h('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', class: 'valor-grande', value: centavosParaCampo(valor_centavos) });
+    const campoData = h('input', { type: 'date', value: prev <= hoje ? prev : hoje, required: true });
+    folha('Efetivar', (corpo, fechar) => {
+      const enviar = (modo) => acao(async () => {
+        const cent = parseValor(campoValor.value);
+        if (!Number.isFinite(cent) || cent <= 0) { campoValor.focus(); throw new Error('Informe um valor maior que zero'); }
+        if (!campoData.value) { campoData.focus(); throw new Error('Informe a data'); }
+        if (modo === 'confirmado' && campoData.value > hoje) throw new Error('A data de efetivação não pode estar no futuro. Use "Só ajustar a previsão" para datas futuras.');
+        if (modo === 'confirmado') await POST(`/api/transacoes/${id}/confirmar`, { valor_centavos: cent, data_caixa: campoData.value });
+        else await PATCH(`/api/transacoes/${id}`, { valor_centavos: cent, data_caixa: campoData.value });
+        fechar(); res(modo);
+      });
       corpo.append(
-        h('p', null, h('b', null, titulo), valor ? ` · ${valor}` : ''),
-        campo('Data em que aconteceu', campoData),
-        h('small', { class: 'dica' }, prev ? `Prevista para ${dataLonga(prev)}. Use a data que aparece no extrato do banco.` : 'Use a data que aparece no extrato do banco.'),
+        h('p', null, h('b', null, titulo)),
+        campo('Valor', campoValor, `Previsto: ${brl(valor_centavos)}. Corrija se o valor real for diferente (ex.: conta de luz).`),
+        campo('Data em que aconteceu', campoData, `Prevista para ${dataLonga(prev)}. Use a data que aparece no extrato do banco.`),
         h('div', { class: 'linha-botoes' },
           h('button', { class: 'btn sec', onclick: () => { fechar(); res(null); } }, 'Cancelar'),
-          h('button', { class: 'btn', onclick: () => { if (!campoData.value) { campoData.focus(); return; } const d = campoData.value; fechar(); res(d); } }, rotulo)));
+          h('button', { class: 'btn', onclick: enviar('confirmado') }, rotulo)),
+        h('button', { class: 'btn link', onclick: enviar('ajustado') }, 'Só ajustar a previsão (sem efetivar)'));
     });
   });
 }

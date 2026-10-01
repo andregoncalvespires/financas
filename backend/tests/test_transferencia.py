@@ -164,3 +164,38 @@ def test_confirmar_com_data_de_efetivacao(nova_pessoa):
     assert a.post(f"/api/transacoes/{pernas[0]['id']}/confirmar", json={"data_caixa": ontem}).status_code == 200
     datas = {x["data_caixa"] for x in a.get("/api/transacoes").json() if x.get("transferencia_id") == pernas[0]["transferencia_id"]}
     assert datas == {ontem}
+
+
+def test_confirmar_e_ajustar_com_valor_real(nova_pessoa):
+    from datetime import date, timedelta
+    a = nova_pessoa("vr")
+    cc, poup = conta(a, "Corrente", 100000), conta(a, "Poupança", 0, tipo="poupanca")
+    ontem = (date.today() - timedelta(days=1)).isoformat()
+    luz = a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 10000, "data_competencia": "2026-09-05",
+                                          "data_caixa": "2026-09-20", "conta_id": cc["id"], "estado": "previsto"}).json()[0]
+    # ajustar a previsão não confirma: muda valor e data, o saldo continua igual
+    r = a.patch(f"/api/transacoes/{luz['id']}", json={"valor_centavos": 12345, "data_caixa": "2026-09-25"}).json()
+    assert r["valor_centavos"] == -12345 and r["data_caixa"] == "2026-09-25" and r["estado"] == "previsto"
+    assert saldos(a)["Corrente"] == 100000
+    # confirmar com o valor real: o sinal (despesa) é preservado
+    r = a.post(f"/api/transacoes/{luz['id']}/confirmar", json={"valor_centavos": 13000, "data_caixa": ontem}).json()
+    assert r["valor_centavos"] == -13000 and r["estado"] == "confirmado" and r["data_caixa"] == ontem
+    assert saldos(a)["Corrente"] == 100000 - 13000
+    # receita mantém o sinal positivo
+    sal = a.post("/api/transacoes", json={"tipo": "receita", "valor_centavos": 500000, "data_competencia": "2026-09-05",
+                                          "data_caixa": "2026-09-05", "conta_id": cc["id"], "estado": "previsto"}).json()[0]
+    assert a.post(f"/api/transacoes/{sal['id']}/confirmar", json={"valor_centavos": 510000}).json()["valor_centavos"] == 510000
+    # transferência prevista: ajuste e confirmação com valor real valem para as duas pontas
+    pernas = transfere(a, cc, poup, 20000, estado="previsto").json()["transacoes"]
+    base = saldos(a)
+    r = a.patch(f"/api/transacoes/{pernas[1]['id']}", json={"valor_centavos": 25000, "data_caixa": "2026-10-05"})
+    assert r.status_code == 200
+    vistas = [x for x in a.get("/api/transacoes").json() if x["transferencia_id"] == pernas[0]["transferencia_id"]]
+    assert sorted(x["valor_centavos"] for x in vistas) == [-25000, 25000] and {x["data_caixa"] for x in vistas} == {"2026-10-05"}
+    assert saldos(a) == base
+    assert a.post(f"/api/transacoes/{pernas[0]['id']}/confirmar", json={"valor_centavos": 30000, "data_caixa": ontem}).status_code == 200
+    vistas = [x for x in a.get("/api/transacoes").json() if x["transferencia_id"] == pernas[0]["transferencia_id"]]
+    assert sorted(x["valor_centavos"] for x in vistas) == [-30000, 30000]
+    assert saldos(a)["Poupança"] == 30000
+    # depois de confirmada não dá para ajustar a previsão
+    assert a.patch(f"/api/transacoes/{pernas[0]['id']}", json={"valor_centavos": 1}).status_code == 422

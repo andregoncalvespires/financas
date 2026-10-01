@@ -1,4 +1,4 @@
-import { h, GET, POST, campo, brl, hojeISO, folha, aviso, acao, limpar, vazio, mesISO, somarMes, intervaloMes, nomeMes, rotuloDia, FORMAS, dataLonga, confirmar, dataEfetivacao } from './util.js';
+import { h, GET, POST, campo, brl, hojeISO, folha, aviso, acao, limpar, vazio, mesISO, somarMes, intervaloMes, nomeMes, rotuloDia, FORMAS, dataLonga, confirmar, efetivar } from './util.js';
 import { formTransacao, excluirTransacao, estado } from './form.js';
 
 const filtro = { mes: mesISO(), base: 'competencia', soPrevistos: false };
@@ -52,7 +52,11 @@ export function detalhe(t, recarregar) {
     if (t.tipo === 'transferencia') corpo.append(h('p', null, t.contraparte_nome
       ? (t.valor_centavos < 0 ? `De ${t.conta_nome} para ${t.contraparte_nome}` : `De ${t.contraparte_nome} para ${t.conta_nome}`) : `Transferência ${t.valor_centavos < 0 ? 'saindo de' : 'entrando em'} ${t.conta_nome}`),
       t.descricao ? h('p', { class: 'dica' }, t.descricao) : null, h('p', { class: 'dica' }, 'Não conta como receita nem despesa. Confirmar ou excluir vale para as duas pontas.'));
-    if (t.estado === 'previsto') corpo.append(h('button', { class: 'btn', onclick: acao(async () => { let dia = null; if (!t.plastico_id) { dia = await dataEfetivacao({ titulo: t.favorecido_nome || t.descricao || t.categoria_nome || 'Lançamento', valor: brl(t.valor_centavos), prevista: t.data_caixa }); if (!dia) return; } await POST(`/api/transacoes/${t.id}/confirmar`, dia ? { data_caixa: dia } : undefined); fechar(); aviso('Confirmado'); recarregar(); }) }, '✔ Confirmar que aconteceu'));
+    if (t.estado === 'previsto') corpo.append(h('button', { class: 'btn', onclick: acao(async () => {
+      let r = 'confirmado';
+      if (t.plastico_id) await POST(`/api/transacoes/${t.id}/confirmar`);      // compra no cartão segue a fatura: sem valor/data
+      else { r = await efetivar({ id: t.id, titulo: t.favorecido_nome || t.descricao || t.categoria_nome || 'Lançamento', valor_centavos: t.valor_centavos, prevista: t.data_caixa }); if (!r) return; }
+      fechar(); aviso(r === 'ajustado' ? 'Previsão ajustada' : 'Confirmado'); recarregar(); }) }, '✔ Confirmar que aconteceu'));
     if ((t.estado === 'confirmado') && !t.plastico_id && t.tipo !== 'pagamento_fatura') corpo.append(h('button', { class: 'btn link', onclick: acao(async () => {
       if (!(await confirmar(t.transferencia_id ? 'Voltar esta transferência para previsto? As duas contas serão ajustadas.' : 'Voltar este lançamento para previsto? O saldo da conta será ajustado.', 'Voltar para previsto'))) return;
       await POST(`/api/transacoes/${t.id}/desfazer`); fechar(); aviso('Voltou para previsto'); recarregar(); }) }, '↩ Voltar para previsto'));

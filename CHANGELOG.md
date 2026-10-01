@@ -12,7 +12,7 @@
 - SMTP com SSL (porta 465) além de STARTTLS (587).
 - Limite de 20 convites por pessoa a cada 24 horas.
 - Documentação em português do Brasil, português de Portugal e inglês; licença AGPL-3.0.
-- Ao confirmar um pagamento, recebimento ou transferência (no Início ou no detalhe do lançamento), um pop-up pergunta a **data da efetivação**, para casar com o extrato do banco. A sugestão é a data prevista se já passou, ou hoje se ainda for futura. A competência não muda. Compras no cartão seguem o vencimento da fatura.
+- Ao efetivar um pagamento, recebimento ou transferência (no Início ou no detalhe do lançamento), um pop-up pede o **valor real** e a **data em que aconteceu**, para casar com o extrato do banco (útil em contas de valor variável, como luz). A sugestão de data é a prevista se já passou, ou hoje se ainda for futura; a competência não muda. O botão "Só ajustar a previsão" corrige valor e data sem efetivar, inclusive em transferências previstas (as duas pontas). Compras no cartão seguem o vencimento da fatura.
 
 ## 1.7.0 — 2026-09-30
 - Mais → Sobre o aplicativo: versão em uso, novidades de cada versão e aviso para atualizar quando o servidor tem versão mais nova; versão também na tela de entrada.
