@@ -17,6 +17,7 @@
 - **Sugestões de favorecido** ao preencher o campo (novo lançamento, edição, confirmação de nota capturada, recorrência e filtro): ao tocar no campo aparecem os mais usados; ao digitar, os que começam com o texto vêm primeiro (ignora acentos). Escolher uma sugestão também sugere a categoria padrão dela.
 - **Editar recorrências** (Mais → Lançamentos recorrentes, toque na recorrência): valor, dia, favorecido, categoria, forma de pagamento e data final. Escolha se a mudança vale deste mês em diante ou só a partir do próximo: os previstos do período são refeitos, o que já foi confirmado não muda e não há duplicidade no mês. Também dá para **pausar** (remove os previstos futuros e para de gerar) e reativar.
 - **Próximos eventos agrupados por data** no Início: um grupo para os atrasados e um por dia, cada um com a quantidade de eventos e o total. Atrasados e hoje começam abertos; toque no grupo para recolher ou expandir, ou use "Expandir tudo"/"Recolher tudo". Os grupos mantêm o estado ao confirmar um evento.
+- **Resumo do mês navegável** no Início: setas ‹ › para ver outros meses (e "Voltar para o mês atual"). O botão "Ver orçamento do mês" abre o orçamento no mês que você está olhando.
 
 ## 1.7.0 — 2026-09-30
 - Mais → Sobre o aplicativo: versão em uso, novidades de cada versão e aviso para atualizar quando o servidor tem versão mais nova; versão também na tela de entrada.

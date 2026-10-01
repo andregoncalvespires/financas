@@ -1,6 +1,7 @@
 import { h, GET, POST, PATCH, brl, aviso, acao, mesISO, somarMes, nomeMes, dataCurta, rotuloDia, FORMAS, vazio, limpar, efetivar } from './util.js';
 import { estado } from './form.js';
 import { pagarFatura } from './cartoes.js';
+import { definirMesOrcamento } from './orcamento.js';
 
 const GRUPOS = {
   disponivel: ['corrente', 'dinheiro'],
@@ -10,6 +11,7 @@ const GRUPOS = {
 };
 let dias = 30;           // período do resumo e dos próximos eventos
 let geradoMes = null;
+let mesResumo = null;    // mês do quadro "Resumo de ..." (null = mês atual)
 
 // Recorrências geram os previstos do mês sozinhas (idempotente): lembretes não dependem de apertar botão.
 async function gerarRecorrencias() {
@@ -27,7 +29,7 @@ export async function inicio(raiz, ctx) {
   const ateISO = `${ate.getFullYear()}-${String(ate.getMonth() + 1).padStart(2, '0')}-${String(ate.getDate()).padStart(2, '0')}`;
   const mes = mesISO();
   await gerarRecorrencias();
-  const [sd, resumo, caps, lem] = await Promise.all([GET(`/api/saldo-disponivel?ate=${ateISO}`), GET(`/api/resumo/mensal?mes=${mes}`), GET('/api/capturas'), GET(`/api/lembretes?dias=${dias}`)]);
+  const [sd, resumo, caps, lem] = await Promise.all([GET(`/api/saldo-disponivel?ate=${ateISO}`), GET(`/api/resumo/mensal?mes=${mesResumo || mes}`), GET('/api/capturas'), GET(`/api/lembretes?dias=${dias}`)]);
   const contas = sd.contas;
   const soma = (classes, f) => contas.filter(c => classes.includes(c.tipo)).reduce((a, c) => a + f(c), 0);
   const livre = (classes) => soma(classes, c => c.livre);
@@ -50,9 +52,8 @@ export async function inicio(raiz, ctx) {
     blocoEventos(lem, () => inicio(raiz, ctx)),
     h('h2', null, 'Contas'),
     contas.length ? contas.map(c => cartaoConta(c, estado.eu.id)) : vazio('Nenhuma conta ainda. Vá em Mais › Contas para criar a primeira.'),
-    h('h2', null, `Resumo de ${nomeMes(mes)}`),
-    resumoMes(resumo),
-    h('a', { class: 'btn sec', href: '#/orcamento' }, 'Ver orçamento do mês'));
+    blocoResumoMes(mesResumo || mes, resumo),
+    h('a', { class: 'btn sec', href: '#/orcamento', onclick: () => definirMesOrcamento(mesResumo || mes) }, 'Ver orçamento do mês'));
 }
 
 // Disponível = saldo + saídas previstas + faturas a vencer no período (por grupo de contas).
@@ -82,6 +83,30 @@ function cartaoConta(c, eu) {
       formas.map(([f, v]) => [h('dt', null, `A pagar · ${FORMAS[f] || f}`), h('dd', null, brl(v))]),
       c.faturas.map(f => [h('dt', null, `Fatura ${f.cartao_nome} (vence ${dataCurta(f.data_vencimento)})`), h('dd', null, brl(f.total))]),
       c.entradas_previstas ? [h('dt', null, 'A receber'), h('dd', null, brl(c.entradas_previstas))] : null));
+}
+
+// "Resumo de <mês>" com setas para navegar entre os meses (só este bloco recarrega)
+function blocoResumoMes(mes, inicial) {
+  const caixa = h('div');
+  const desenhar = (m, dados) => {
+    const ehAtual = m === mesISO();
+    limpar(caixa).append(
+      h('div', { class: 'navmes' }, h('button', { class: 'icone', 'aria-label': 'Mês anterior', onclick: () => ir(m, -1) }, '‹'),
+        h('h2', { class: 'resumo-titulo' }, `Resumo de ${nomeMes(m)}`),
+        h('button', { class: 'icone', 'aria-label': 'Próximo mês', onclick: () => ir(m, 1) }, '›')),
+      ehAtual ? null : h('button', { class: 'btn link', onclick: () => ir(mesISO(), 0) }, 'Voltar para o mês atual'),
+      resumoMes(dados));
+  };
+  const ir = async (m, n) => {
+    const novo = somarMes(m, n);
+    try {
+      const dados = await GET(`/api/resumo/mensal?mes=${novo}`);
+      mesResumo = novo === mesISO() ? null : novo;
+      desenhar(novo, dados);
+    } catch (e) { aviso(e.message || 'Erro ao carregar o mês', true); }
+  };
+  desenhar(mes, inicial);
+  return caixa;
 }
 
 function resumoMes(r) {

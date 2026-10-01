@@ -2,6 +2,7 @@ import { h, GET, PUT_, DEL, brl, folha, aviso, acao, campo, limpar, vazio, mesIS
 import { estado } from './form.js';
 
 const filtro = { mes: mesISO(), dono: null };
+export const definirMesOrcamento = (mes) => { filtro.mes = mes; };   // o Início abre o orçamento no mês que está olhando
 
 export async function orcamento(raiz, ctx) {
   const donos = await GET('/api/orcamento/donos');

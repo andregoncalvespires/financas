@@ -197,3 +197,5 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .grupo-topo .grupo-total { margin-left: auto; font-weight: 650; font-size: .9rem; }
 .grupo-topo.atrasado b { color: var(--neg); }
 .grupo-eventos .lembrete { margin-top: 6px; }
+
+.resumo-titulo { margin: 0; text-transform: uppercase; font-size: .8rem; letter-spacing: .04em; color: var(--suave); }
