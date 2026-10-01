@@ -146,6 +146,25 @@ export function confirmar(texto, rotulo = 'Confirmar', perigo = false) {
   });
 }
 
+// Pergunta a data em que o dinheiro realmente se moveu (a do extrato). Resolve com 'AAAA-MM-DD' ou null se cancelar.
+// Sugere a data prevista quando já passou; se for futura, sugere hoje.
+export function dataEfetivacao({ titulo, valor, prevista, rotulo = 'Confirmar' }) {
+  return new Promise((res) => {
+    const hoje = hojeISO();
+    const prev = prevista ? String(prevista).slice(0, 10) : '';
+    const campoData = h('input', { type: 'date', value: prev && prev <= hoje ? prev : hoje, max: hoje, required: true });
+    folha('Data da efetivação', (corpo, fechar) => {
+      corpo.append(
+        h('p', null, h('b', null, titulo), valor ? ` · ${valor}` : ''),
+        campo('Data em que aconteceu', campoData),
+        h('small', { class: 'dica' }, prev ? `Prevista para ${dataLonga(prev)}. Use a data que aparece no extrato do banco.` : 'Use a data que aparece no extrato do banco.'),
+        h('div', { class: 'linha-botoes' },
+          h('button', { class: 'btn sec', onclick: () => { fechar(); res(null); } }, 'Cancelar'),
+          h('button', { class: 'btn', onclick: () => { if (!campoData.value) { campoData.focus(); return; } const d = campoData.value; fechar(); res(d); } }, rotulo)));
+    });
+  });
+}
+
 // botão que desabilita durante a ação assíncrona e mostra o erro
 export function acao(fn) {
   return async (e) => {

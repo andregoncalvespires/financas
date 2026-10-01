@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, timedelta
 from uuid import uuid4
 
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from ..deps import Usuario, get_db, usuario_atual
 from ..schemas import GerarRecorrenciasIn, RecorrenciaIn, TransacaoIn, TransacaoPatch, TransferenciaIn
@@ -91,17 +92,28 @@ def alterar(tid: str, body: TransacaoPatch, cur=Depends(get_db)):
     return cur.execute(SQL_TX + " WHERE t.id = %s", (tid,)).fetchone()
 
 
+class ConfirmarIn(BaseModel):
+    data_caixa: date | None = None      # data em que o dinheiro realmente se moveu (extrato); vazio mantém a prevista
+
+
 @router.post("/transacoes/{tid}/confirmar")
-def confirmar(tid: str, cur=Depends(get_db)):
-    t = cur.execute("SELECT transferencia_id FROM transacao WHERE id = %s", (tid,)).fetchone()
+def confirmar(tid: str, body: ConfirmarIn | None = None, cur=Depends(get_db)):
+    dia = body.data_caixa if body else None
+    if dia and dia > date.today() + timedelta(days=1):
+        raise HTTPException(422, "a data de efetivação não pode estar no futuro")
+    t = cur.execute("SELECT transferencia_id, plastico_id FROM transacao WHERE id = %s", (tid,)).fetchone()
+    if dia and t and t["plastico_id"]:
+        raise HTTPException(422, "compras no cartão seguem o vencimento da fatura; a data não pode ser alterada")
     if t and t["transferencia_id"]:      # as duas pontas da transferência são confirmadas juntas
-        n = cur.execute("UPDATE transacao SET estado = 'confirmado' WHERE transferencia_id = %s AND estado = 'previsto'", (t["transferencia_id"],)).rowcount
+        n = cur.execute("UPDATE transacao SET estado = 'confirmado', data_caixa = COALESCE(%s, data_caixa) "
+                        "WHERE transferencia_id = %s AND estado = 'previsto'", (dia, t["transferencia_id"])).rowcount
         if n == 0:
             raise HTTPException(404, "lançamento previsto não encontrado")
         if n != 2:
             raise HTTPException(403, "você não pode confirmar os dois lados desta transferência")
         return cur.execute(SQL_TX + " WHERE t.id = %s", (tid,)).fetchone()
-    r = cur.execute("UPDATE transacao SET estado = 'confirmado' WHERE id = %s AND estado = 'previsto' RETURNING id", (tid,)).fetchone()
+    r = cur.execute("UPDATE transacao SET estado = 'confirmado', data_caixa = COALESCE(%s, data_caixa) "
+                    "WHERE id = %s AND estado = 'previsto' RETURNING id", (dia, tid)).fetchone()
     if not r:
         raise HTTPException(404, "lançamento previsto não encontrado")
     return cur.execute(SQL_TX + " WHERE t.id = %s", (tid,)).fetchone()

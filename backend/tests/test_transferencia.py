@@ -137,3 +137,30 @@ def test_desfazer_bloqueia_conciliado_e_pagamento_de_fatura(nova_pessoa):
         c.execute("UPDATE transacao SET estado = 'conciliado' WHERE id = %s", (t["id"],))
     assert a.post(f"/api/transacoes/{t['id']}/desfazer").status_code == 422
     assert a.post("/api/transacoes/00000000-0000-0000-0000-000000000000/desfazer").status_code == 404
+
+
+def test_confirmar_com_data_de_efetivacao(nova_pessoa):
+    from datetime import date, timedelta
+    a = nova_pessoa("dt")
+    cc, poup = conta(a, "Corrente", 50000), conta(a, "Poupança", 0, tipo="poupanca")
+    ontem = (date.today() - timedelta(days=1)).isoformat()
+    # lançamento simples: a data de caixa passa a ser a informada; a competência não muda
+    t = a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 1000, "data_competencia": "2026-09-05",
+                                        "data_caixa": "2026-09-20", "conta_id": cc["id"], "estado": "previsto"}).json()[0]
+    r = a.post(f"/api/transacoes/{t['id']}/confirmar", json={"data_caixa": ontem})
+    assert r.status_code == 200 and r.json()["data_caixa"] == ontem and r.json()["data_competencia"] == "2026-09-05"
+    # sem corpo ou sem data: mantém a data prevista
+    t2 = a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 500, "data_competencia": "2026-09-05",
+                                         "data_caixa": "2026-09-21", "conta_id": cc["id"], "estado": "previsto"}).json()[0]
+    assert a.post(f"/api/transacoes/{t2['id']}/confirmar").json()["data_caixa"] == "2026-09-21"
+    # data futura é recusada e nada muda
+    t3 = a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 700, "data_competencia": "2026-09-05",
+                                         "data_caixa": "2026-09-22", "conta_id": cc["id"], "estado": "previsto"}).json()[0]
+    futuro = (date.today() + timedelta(days=10)).isoformat()
+    assert a.post(f"/api/transacoes/{t3['id']}/confirmar", json={"data_caixa": futuro}).status_code == 422
+    assert a.post(f"/api/transacoes/{t3['id']}/confirmar", json={}).status_code == 200
+    # transferência: as duas pontas recebem a mesma data
+    pernas = transfere(a, cc, poup, 20000, estado="previsto").json()["transacoes"]
+    assert a.post(f"/api/transacoes/{pernas[0]['id']}/confirmar", json={"data_caixa": ontem}).status_code == 200
+    datas = {x["data_caixa"] for x in a.get("/api/transacoes").json() if x.get("transferencia_id") == pernas[0]["transferencia_id"]}
+    assert datas == {ontem}
