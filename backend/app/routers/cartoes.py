@@ -168,6 +168,7 @@ def convidar_portador(pid: str, body: ConvitePortadorIn, bg: BackgroundTasks, cu
 def faturas(cid: str, cur=Depends(get_db)):
     if not cur.execute("SELECT dono_cartao(%s) AS ok", (cid,)).fetchone()["ok"]:
         raise HTTPException(404, "cartão não encontrado ou você não é o dono")
+    cur.execute("SELECT limpar_faturas_vazias(%s)", (cid,))       # tira da lista as faturas abertas e vazias que ficaram de exclusões antigas
     fats = cur.execute(
         """SELECT f.id, f.mes_referencia, f.data_fechamento, f.data_vencimento, f.status, f.pagamento_transacao_id,
                   COALESCE(SUM(t.valor_centavos), 0)::bigint AS total, COUNT(t.id)::int AS itens

@@ -193,9 +193,17 @@ def desfazer(tid: str, cur=Depends(get_db)):
 
 @router.delete("/transacoes/{tid}")
 def excluir(tid: str, todo_parcelamento: bool = False, cur=Depends(get_db)):
-    t = cur.execute("SELECT id, tipo, transferencia_id, parcelamento_id, recorrencia_id, data_competencia FROM transacao WHERE id = %s", (tid,)).fetchone()
+    t = cur.execute("SELECT id, tipo, transferencia_id, parcelamento_id, recorrencia_id, data_competencia, "
+                    "(SELECT cartao_id FROM plastico WHERE id = transacao.plastico_id) AS cartao_id FROM transacao WHERE id = %s", (tid,)).fetchone()
     if not t:
         raise HTTPException(404, "lançamento não encontrado")
+    r = _excluir(tid, todo_parcelamento, cur, t)
+    if t["cartao_id"]:      # a fatura que ficou sem compras não deve sobrar aberta e zerada
+        cur.execute("SELECT limpar_faturas_vazias(%s)", (t["cartao_id"],))
+    return r
+
+
+def _excluir(tid, todo_parcelamento, cur, t):
     if t["recorrencia_id"]:      # excluir uma ocorrência = pular aquele mês; sem isso a geração automática a recriaria
         cur.execute("INSERT INTO recorrencia_pulada(recorrencia_id, mes, criado_por) VALUES (%s, date_trunc('month', %s::date)::date, app_uid()) ON CONFLICT DO NOTHING",
                     (t["recorrencia_id"], t["data_competencia"]))

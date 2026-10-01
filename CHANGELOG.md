@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.13.5 — 2026-10-01
+- **Faturas vazias não ficam mais abertas.** Ao excluir lançamentos (um ou vários), as faturas de cartão que ficaram sem nenhuma compra, abertas e sem pagamento são removidas automaticamente. Faturas vazias que já existiam também somem ao abrir **Cartões**. Faturas pagas ou com pagamento vinculado nunca são removidas; se uma compra nova cair no mês, a fatura é recriada sozinha.
+
 ## 1.13.4 — 2026-10-01
 - **Importar fatura: leitura corrigida.** A IA estava confundindo os ícones da coluna "Compra" da fatura (pagamento por aproximação e "@" de compra online) com parcelas, marcando compras à vista como "1/3" ou "1/2" e criando parcelas futuras indevidas. O pedido à IA agora diz que só vale a parcela escrita na coluna Parcela. Além disso, se muitas compras novas de uma fatura vierem como parceladas 1/x, a conferência mostra um alerta e **deixa desmarcada** a criação das parcelas futuras.
 - **Selecionar vários lançamentos e excluir.** Em Lançamentos, o botão **Selecionar** liga a seleção: marque linhas uma a uma, use **Marcar todas** (vale para tudo o que o filtro mostra) e **Excluir marcadas**. Para parcelas há a opção de excluir também as demais parcelas (inclusive as futuras) dos parcelamentos marcados. O que não puder ser excluído (conciliado ou sem permissão) fica de fora e é avisado; o resto é excluído. Dica para limpar uma importação errada: filtre por cartão e por "Só previstos" e marque tudo.

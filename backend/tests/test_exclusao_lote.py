@@ -37,3 +37,30 @@ def test_parcelamento_so_as_marcadas(nova_pessoa):
     parcelas = lanca(a, cc, 9000, "2026-09-10", parcelas=3)
     assert a.post("/api/transacoes/excluir-lote", json={"ids": [parcelas[0]["id"]]}).json()["excluidos"] == 1
     assert len(a.get("/api/transacoes", params={"conta_id": cc["id"], "limite": 50}).json()) == 2
+
+
+def test_fatura_que_ficou_vazia_some(nova_pessoa):
+    a = nova_pessoa("vazia")
+    cc = conta(a, "Corrente", 100000)
+    k = a.post("/api/cartoes", json={"nome": "Visa", "bandeira": "visa", "dia_fechamento": 28, "dia_vencimento": 4,
+                                     "conta_pagamento_id": cc["id"], "limite_centavos": 800000, "final_principal": "1111"}).json()
+    pl = k["plasticos"][0]["id"]
+    t = a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 3000, "data_competencia": "2026-09-10", "plastico_id": pl, "parcelas": 3}).json()
+    assert len(a.get(f"/api/cartoes/{k['id']}/faturas").json()) == 3
+    assert a.delete(f"/api/transacoes/{t[0]['id']}").status_code == 200           # exclui só a 1ª: as outras faturas continuam com a parcela
+    assert len(a.get(f"/api/cartoes/{k['id']}/faturas").json()) == 2
+    r = a.post("/api/transacoes/excluir-lote", json={"ids": [t[1]["id"]], "todo_parcelamento": True}).json()
+    assert r["excluidos"] == 2 and a.get(f"/api/cartoes/{k['id']}/faturas").json() == []
+
+
+def test_listagem_limpa_faturas_vazias_antigas(nova_pessoa):
+    import psycopg
+    from conftest import OWNER
+    a = nova_pessoa("vazia2")
+    cc = conta(a, "Corrente", 100000)
+    k = a.post("/api/cartoes", json={"nome": "Visa", "bandeira": "visa", "dia_fechamento": 28, "dia_vencimento": 4,
+                                     "conta_pagamento_id": cc["id"], "limite_centavos": 800000, "final_principal": "1111"}).json()
+    a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 3000, "data_competencia": "2026-09-10", "plastico_id": k["plasticos"][0]["id"], "parcelas": 2})
+    with psycopg.connect(OWNER, autocommit=True) as c:                               # simula a sobra de uma exclusão feita antes desta correção
+        c.execute("DELETE FROM transacao WHERE plastico_id = %s", (k["plasticos"][0]["id"],))
+    assert a.get(f"/api/cartoes/{k['id']}/faturas").json() == []
