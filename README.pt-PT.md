@@ -35,9 +35,9 @@ curl -fsSLO https://raw.githubusercontent.com/andregoncalvespires/financas/main/
 docker compose up -d
 ```
 
-Abra <http://localhost:8000>, escreva o seu e-mail, introduza o código que chegou à caixa de entrada e está pronto. Na primeira execução a aplicação gera sozinha as palavras-passe internas (base de dados e segurança); não precisa de criar nem de anotar nada.
+Abra <http://localhost:8472>, escreva o seu e-mail, introduza o código que chegou à caixa de entrada e está pronto. Na primeira execução a aplicação gera sozinha as palavras-passe internas (base de dados e segurança); não precisa de criar nem de anotar nada.
 
-Para usar noutro dispositivo da mesma rede (telemóvel, tablet), abra `http://IP-DO-COMPUTADOR:8000`.
+Para usar noutro dispositivo da mesma rede (telemóvel, tablet), abra `http://IP-DO-COMPUTADOR:8472`.
 
 Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
@@ -111,8 +111,8 @@ A aplicação funciona em qualquer rede onde o computador esteja acessível; nã
 
 - Para **instalar no telemóvel** como aplicação, o navegador exige HTTPS (ou `localhost`). Sem HTTPS continua a poder usar a aplicação normalmente no navegador.
 - Com HTTPS a aplicação marca o cookie de sessão como seguro automaticamente. Ajuste `APP_URL` para o endereço público, para que as ligações dos e-mails de convite funcionem.
-- Se usar um proxy, encaminhe para a porta 8000 e envie os cabeçalhos `X-Forwarded-For` e `X-Forwarded-Proto`. Exemplo com Caddy (obtém o certificado sozinho): `financas.odominio.pt { reverse_proxy 127.0.0.1:8000 }`.
-- Para aceitar ligações só do próprio computador (por exemplo, atrás de um proxy local), troque a linha `"8000:8000"` por `"127.0.0.1:8000:8000"` no `docker-compose.yml`.
+- Se usar um proxy, encaminhe para a porta 8472 e envie os cabeçalhos `X-Forwarded-For` e `X-Forwarded-Proto`. Exemplo com Caddy (obtém o certificado sozinho): `financas.odominio.pt { reverse_proxy 127.0.0.1:8472 }`.
+- Para aceitar ligações só do próprio computador (por exemplo, atrás de um proxy local), troque a linha `"8472:8472"` por `"127.0.0.1:8472:8472"` no `docker-compose.yml`.
 
 > **Atenção:** qualquer pessoa que alcance o endereço pode criar uma conta (basta receber o código por e-mail), e a aplicação envia esses e-mails pela sua conta SMTP. Por isso, mantenha a aplicação na rede local ou proteja o acesso externo. A aplicação limita pedidos de código e de convite por pessoa, mas isso não substitui essa proteção.
 </details>
@@ -167,8 +167,8 @@ docker compose up -d
 |---|---|
 | A aplicação não arranca (o contentor `api` reinicia continuamente) | `docker compose logs api`: a primeira linha diz o que falta preencher. |
 | O código não chega por e-mail | `docker compose logs api` e procure `e-mail enviado` ou `falha ao enviar`. Causas comuns: palavra-passe de aplicação errada, verificação em dois passos desligada, mensagem no spam. |
-| Não abre noutro dispositivo da rede | Use `http://IP-DO-COMPUTADOR:8000` e permita a porta 8000 na firewall do computador. |
-| A porta 8000 já está em uso | No `docker-compose.yml`, troque `"8000:8000"` por `"8080:8000"` e use a porta 8080. |
+| Não abre noutro dispositivo da rede | Use `http://IP-DO-COMPUTADOR:8472` e permita a porta 8472 na firewall do computador. |
+| A porta 8472 já está em uso | No `docker-compose.yml`, troque `"8472:8472"` por `"8080:8472"` e use a porta 8080. |
 | Depois de atualizar, o telemóvel mostra o ecrã antigo | Mais → Sobre o aplicativo → atualizar; se não aparecer, limpe uma vez os dados do site no navegador do telemóvel. |
 | A leitura de comprovativos não funciona | Confira `GEMINI_API_KEY` e se a faturação do projeto Google está ativa; o registo mostra o erro devolvido. |
 

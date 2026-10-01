@@ -35,9 +35,9 @@ curl -fsSLO https://raw.githubusercontent.com/andregoncalvespires/financas/main/
 docker compose up -d
 ```
 
-Abra <http://localhost:8000>, digite o seu e-mail, informe o código que chegou na caixa de entrada e pronto. Na primeira execução o app gera sozinho as senhas internas (banco de dados e segurança); você não precisa criar nem anotar nada.
+Abra <http://localhost:8472>, digite o seu e-mail, informe o código que chegou na caixa de entrada e pronto. Na primeira execução o app gera sozinho as senhas internas (banco de dados e segurança); você não precisa criar nem anotar nada.
 
-Para usar de outro aparelho da mesma rede (celular, tablet), abra `http://IP-DO-COMPUTADOR:8000`.
+Para usar de outro aparelho da mesma rede (celular, tablet), abra `http://IP-DO-COMPUTADOR:8472`.
 
 Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
@@ -111,8 +111,8 @@ O app funciona em qualquer rede onde o computador esteja acessível; ele não de
 
 - Para **instalar no celular** como aplicativo, o navegador exige HTTPS (ou `localhost`). Sem HTTPS você ainda usa o app normalmente pelo navegador.
 - Com HTTPS o app marca o cookie de login como seguro automaticamente. Ajuste `APP_URL` para o endereço público, para os links dos e-mails de convite funcionarem.
-- Se usar um proxy, encaminhe para a porta 8000 e envie os cabeçalhos `X-Forwarded-For` e `X-Forwarded-Proto`. Exemplo com Caddy (obtém o certificado sozinho): `financas.seudominio.com { reverse_proxy 127.0.0.1:8000 }`.
-- Para aceitar conexões só do próprio computador (por exemplo, atrás de um proxy local), troque a linha `"8000:8000"` por `"127.0.0.1:8000:8000"` no `docker-compose.yml`.
+- Se usar um proxy, encaminhe para a porta 8472 e envie os cabeçalhos `X-Forwarded-For` e `X-Forwarded-Proto`. Exemplo com Caddy (obtém o certificado sozinho): `financas.seudominio.com { reverse_proxy 127.0.0.1:8472 }`.
+- Para aceitar conexões só do próprio computador (por exemplo, atrás de um proxy local), troque a linha `"8472:8472"` por `"127.0.0.1:8472:8472"` no `docker-compose.yml`.
 
 > **Atenção:** qualquer pessoa que alcançar o endereço pode criar uma conta (basta receber o código por e-mail), e o app envia esses e-mails pela sua conta de SMTP. Por isso, mantenha o app na rede local ou proteja o acesso externo. O app limita pedidos de código e de convite por pessoa, mas não substitui essa proteção.
 </details>
@@ -167,8 +167,8 @@ docker compose up -d
 |---|---|
 | O app não inicia (o contêiner `api` reinicia sozinho) | `docker compose logs api`: a primeira linha diz o que falta preencher. |
 | O código não chega por e-mail | `docker compose logs api` e procure `e-mail enviado` ou `falha ao enviar`. Causas comuns: senha de app incorreta, verificação em duas etapas desligada, mensagem no spam. |
-| Não abre de outro aparelho da rede | Use `http://IP-DO-COMPUTADOR:8000` e libere a porta 8000 no firewall do computador. |
-| A porta 8000 já está em uso | No `docker-compose.yml`, troque `"8000:8000"` por `"8080:8000"` e acesse pela porta 8080. |
+| Não abre de outro aparelho da rede | Use `http://IP-DO-COMPUTADOR:8472` e libere a porta 8472 no firewall do computador. |
+| A porta 8472 já está em uso | No `docker-compose.yml`, troque `"8472:8472"` por `"8080:8472"` e acesse pela porta 8080. |
 | Depois de atualizar, o celular mostra a tela antiga | Mais → Sobre o aplicativo → atualizar; se não aparecer, limpe uma vez os dados do site no navegador do celular. |
 | A leitura de comprovantes não funciona | Confira `GEMINI_API_KEY` e se o faturamento do projeto Google está ativo; o log mostra o erro retornado. |
 

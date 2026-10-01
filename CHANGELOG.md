@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.11.0 — 2026-10-01
+**Atenção ao atualizar:** a porta padrão passou de **8000** para **8472**, para não conflitar com outros aplicativos comuns (como o Portainer). O app agora escuta na 8472 também dentro do container, então **baixe o `docker-compose.yml` novo** (linha `"8472:8472"`) antes do `docker compose pull && docker compose up -d`, ou ajuste a sua. Atualize também o `APP_URL` e qualquer proxy, túnel ou domínio que apontava para a 8000. Para manter outra porta, mude só o número da esquerda em `ports` (ex.: `"8080:8472"`).
+
 ## 1.10.0 — 2026-10-01
 - Ao efetivar um pagamento, recebimento ou transferência (no Início ou no detalhe do lançamento), um pop-up pede o **valor real** e a **data em que aconteceu**, para casar com o extrato do banco (útil em contas de valor variável, como luz). A sugestão de data é a prevista se já passou, ou hoje se ainda for futura; a competência não muda. O botão "Só ajustar a previsão" corrige valor e data sem efetivar, inclusive em transferências previstas (as duas pontas). Compras no cartão seguem o vencimento da fatura.
 - Tela **Lançamentos** com **filtros**: período (mês ou intervalo livre, por competência ou caixa), conta ou cartão (com plástico/portador e fatura), favorecido, categoria (a principal inclui as subcategorias), tipo, situação e busca por texto em descrição, favorecido e categoria. Os filtros ativos viram chips removíveis, os totais refletem a seleção inteira e "Ver por categoria e favorecido" detalha onde o dinheiro foi (toque para filtrar). Serve também para consultar compras do cartão.

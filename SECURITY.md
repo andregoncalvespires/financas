@@ -6,7 +6,7 @@
 
 **Versões com correções:** a versão principal mais recente (imagem `ghcr.io/andregoncalvespires/financas:latest`). Mantenha o aplicativo atualizado.
 
-**Boas práticas de quem instala:** não publique a porta 8000 diretamente na internet (use HTTPS por túnel ou proxy), proteja o `docker-compose.yml` (ele guarda a senha do SMTP) e os backups, use senha de app (e não a senha principal) no SMTP e revogue chaves que tenham sido expostas.
+**Boas práticas de quem instala:** não publique a porta 8472 diretamente na internet (use HTTPS por túnel ou proxy), proteja o `docker-compose.yml` (ele guarda a senha do SMTP) e os backups, use senha de app (e não a senha principal) no SMTP e revogue chaves que tenham sido expostas.
 
 ## Português (Portugal)
 
@@ -14,7 +14,7 @@
 
 **Versões com correções:** a versão principal mais recente (imagem `ghcr.io/andregoncalvespires/financas:latest`).
 
-**Boas práticas para quem instala:** não publique a porta 8000 diretamente na internet (use HTTPS através de túnel ou proxy), proteja o `docker-compose.yml` (guarda a palavra-passe do SMTP) e as cópias de segurança, use palavra-passe de aplicação (e não a principal) no SMTP e revogue chaves que tenham sido expostas.
+**Boas práticas para quem instala:** não publique a porta 8472 diretamente na internet (use HTTPS através de túnel ou proxy), proteja o `docker-compose.yml` (guarda a palavra-passe do SMTP) e as cópias de segurança, use palavra-passe de aplicação (e não a principal) no SMTP e revogue chaves que tenham sido expostas.
 
 ## English
 
@@ -22,4 +22,4 @@
 
 **Supported versions:** the latest major version (image `ghcr.io/andregoncalvespires/financas:latest`).
 
-**Good practice for installers:** do not publish port 8000 directly to the internet (use HTTPS through a tunnel or proxy), protect `docker-compose.yml` (it holds the SMTP password) and your backups, use an app password (not your main password) for SMTP, and revoke any key that has been exposed.
+**Good practice for installers:** do not publish port 8472 directly to the internet (use HTTPS through a tunnel or proxy), protect `docker-compose.yml` (it holds the SMTP password) and your backups, use an app password (not your main password) for SMTP, and revoke any key that has been exposed.

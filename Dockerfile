@@ -10,6 +10,6 @@ COPY VERSION CHANGELOG.md /srv/
 RUN useradd -r -u 10001 fin && mkdir -p /data && chown fin /data
 USER fin
 ENV DADOS_DIR=/data
-EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/saude',timeout=4).status==200 else 1)"
-CMD ["sh", "-c", "python -m app.migrate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+EXPOSE 8472
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8472/api/saude',timeout=4).status==200 else 1)"
+CMD ["sh", "-c", "python -m app.migrate && exec uvicorn app.main:app --host 0.0.0.0 --port 8472 --proxy-headers --forwarded-allow-ips='*'"]

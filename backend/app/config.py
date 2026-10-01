@@ -27,7 +27,7 @@ def _bool(v: str | None, default: bool = False) -> bool:
 class Settings:
     database_url: str = ""
     pepper: str = ""
-    app_url: str = "http://localhost:8000"
+    app_url: str = "http://localhost:8472"
     mail_mode: str = "smtp"              # sempre 'smtp' em produção; 'console' só nos testes
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
@@ -60,7 +60,7 @@ def carregar() -> Settings:
     return Settings(
         database_url=url_banco("app"),
         pepper=_segredo("APP_PEPPER"),
-        app_url=e.get("APP_URL", "http://localhost:8000").rstrip("/"),
+        app_url=e.get("APP_URL", "http://localhost:8472").rstrip("/"),
         mail_mode=e.get("MAIL_MODE", "smtp") if modo_teste() else "smtp",
         smtp_host=e.get("SMTP_HOST", "smtp.gmail.com"),
         smtp_port=int(e.get("SMTP_PORT", "587")),
