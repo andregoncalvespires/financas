@@ -65,20 +65,27 @@ function conferir(corpo, fechar, k, p, aoTerminar) {
     h('div', { class: 'tres' },
       h('div', null, h('small', null, 'Total da fatura'), h('b', null, brl(f.total_centavos))),
       h('div', null, h('small', null, 'Compras lidas'), h('b', null, brl(f.soma_compras_centavos))),
-      h('div', null, h('small', null, 'Diferença'), h('b', { class: dif ? 'neg' : 'pos' }, brl(dif)))),
+      h('div', null, h('small', null, 'Diferença'), h('b', { class: dif ? 'neg' : 'pos' }, brl(Math.abs(dif))))),
+    h('small', { class: 'dica' }, 'Os valores aparecem como na fatura: compras positivas; créditos e estornos aparecem como crédito, e reduzem a fatura. Ao gravar, cada compra entra como despesa do cartão.'),
     dif ? h('small', { class: 'dica' }, 'A diferença pode ser encargos, anuidade, saldo anterior ou uma linha que a leitura não pegou. Confira as linhas abaixo com a fatura.') : null,
     p.alertas.map(a => h('p', { class: 'alertas' }, a)));
 
   const dono = k.dono_id;
   function seletorCategoria(l) {
     const tipo = l.eh_credito ? 'receita' : 'despesa';
-    const sel = h('select', { onchange: () => { l.categoria_id = sel.value || null; } }, h('option', { value: '' }, 'Sem categoria'), opcoesCategoria(dono, tipo));
+    const sel = h('select', { onchange: () => {
+      l.categoria_id = sel.value || null; l.manual = true;
+      // mesma loja nas outras linhas novas: acompanha a escolha (exceto as que você já ajustou)
+      for (const o of linhas) if (o !== l && !o.casamento && !o.manual && (o.favorecido_nome || '').toLowerCase() === (l.favorecido_nome || '').toLowerCase() && o.seletor) { o.categoria_id = l.categoria_id; o.seletor.value = sel.value; }
+    } }, h('option', { value: '' }, 'Sem categoria'), opcoesCategoria(dono, tipo));
+    l.seletor = sel;
     sel.value = l.categoria_id || '';
     if (sel.value !== (l.categoria_id || '')) sel.value = '';
     return sel;
   }
   const rotuloParcela = (l) => l.parcelas_total > 1 ? ` · ${l.parcela_atual}/${l.parcelas_total}` : '';
-  const valorTxt = (l) => (l.eh_credito ? '+' : '−') + brl(l.valor_centavos).replace('-', '');
+  // valores como na fatura do banco: compra positiva; crédito/estorno rotulado (reduz a fatura)
+  const valorTxt = (l) => l.eh_credito ? `crédito −${brl(l.valor_centavos)}` : brl(l.valor_centavos);
 
   function linhaJa(l) {
     const c = l.casamento;
@@ -87,7 +94,7 @@ function conferir(corpo, fechar, k, p, aoTerminar) {
       h('div', { class: 'imp-topo' }, h('div', { class: 'corpo' }, h('b', null, l.descricao), h('small', null, `${dataCurta(l.data)}${rotuloParcela(l)} · ${l.plastico_rotulo}`)), h('b', null, valorTxt(l))));
     if (!dd && c.data === l.data) { bloco.append(h('small', { class: 'selo' }, '✓ confere')); return bloco; }
     if (dd) {
-      bloco.append(h('p', { class: 'imp-dif' }, `No app: ${brl(c.valor_centavos)} · Na fatura: ${brl(l.valor_centavos)} · diferença `, h('b', null, brl(dd))));
+      bloco.append(h('p', { class: 'imp-dif' }, `No app: ${brl(c.valor_centavos)} · Na fatura: ${brl(l.valor_centavos)} · `, h('b', null, `${brl(Math.abs(dd))} ${dd > 0 ? 'a mais' : 'a menos'} na fatura`)));
     }
     if (c.data !== l.data) bloco.append(h('small', { class: 'dica' }, `Data no app: ${dataCurta(c.data)} · na fatura: ${dataCurta(l.data)}`));
     const sel = h('select', { onchange: () => { l.usarFatura = sel.value === 'fatura'; recontar(); } },
@@ -124,7 +131,7 @@ function conferir(corpo, fechar, k, p, aoTerminar) {
     fora.length ? h('small', { class: 'dica' }, 'Pagamentos, encargos e itens que não são compras. Marque só o que quiser lançar.') : null, fora.map(l => linhaNova(l)),
     p.no_app_sem_par.length ? h('h3', null, `No app, mas não na fatura (${p.no_app_sem_par.length})`) : null,
     p.no_app_sem_par.length ? h('small', { class: 'dica' }, 'Estão lançadas nesta fatura no app e não apareceram no PDF. Nada é alterado aqui; revise em Lançamentos.') : null,
-    p.no_app_sem_par.map(x => h('div', { class: 'imp-linha' }, h('div', { class: 'imp-topo' }, h('div', { class: 'corpo' }, h('b', null, x.descricao || '—'), h('small', null, dataCurta(x.data))), h('b', null, brl(x.eh_credito ? x.valor_centavos : -x.valor_centavos))))),
+    p.no_app_sem_par.map(x => h('div', { class: 'imp-linha' }, h('div', { class: 'imp-topo' }, h('div', { class: 'corpo' }, h('b', null, x.descricao || '—'), h('small', null, dataCurta(x.data))), h('b', null, x.eh_credito ? `crédito −${brl(x.valor_centavos)}` : brl(x.valor_centavos))))),
     h('div', { class: 'imp-rodape' }, h('small', null, contador), aplicar));
   recontar();
 }

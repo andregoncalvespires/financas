@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.2 — 2026-10-01
+- **Importar fatura: valores sem confusão.** A conferência mostra os valores como na fatura do banco (compras positivas; créditos e estornos aparecem como "crédito −R$ …") e a diferença de valor vem em texto ("R$ 4,33 a mais na fatura"). Ao gravar, nada muda: cada compra continua entrando como despesa do cartão.
+- **Importar fatura: categorias.** A IA agora sugere a categoria de cada compra (quando a loja ainda é nova para você), além do que o app já sabia pelo histórico e pelo favorecido. Ao trocar a categoria de uma linha, as outras linhas da mesma loja acompanham. Depois de gravar, o app aprende a categoria de cada favorecido, então nas próximas faturas a maioria já vem preenchida.
+
 ## 1.13.1 — 2026-10-01
 - **Importar fatura: parcelas futuras.** Nas compras parceladas novas da fatura (ex.: 3/10), a conferência traz a opção, marcada por padrão, de **criar também as parcelas seguintes como previstas** nas faturas dos meses certos (ex.: "7 × R$ 100,00, até 05/2027"). A fatura que está sendo importada não muda de total; o "Disponível" e as faturas futuras passam a enxergar o compromisso. Parcelas que já existem (lançadas à mão ou numa importação anterior) não são duplicadas. Ao importar a fatura seguinte, a parcela prevista que casar passa a **confirmada** (e, se o valor mudar, a diferença aparece na conferência).
 

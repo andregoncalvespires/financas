@@ -24,7 +24,7 @@ FATURA = {
     "linhas": [
         {"data": "2026-09-01", "descricao": "SUPERMERCADOS BH", "valor": 120.00, "parcela_atual": 1, "parcelas_total": 1, "final_cartao": "1111", "tipo": "compra"},
         {"data": "2026-09-05", "descricao": "PADARIA MERCAPAO", "valor": 34.33, "parcela_atual": 1, "parcelas_total": 1, "final_cartao": "1111", "tipo": "compra"},
-        {"data": "2026-09-10", "descricao": "DL *UBERRIDES", "valor": 8.94, "parcela_atual": 1, "parcelas_total": 1, "final_cartao": "1111", "tipo": "compra"},
+        {"data": "2026-09-10", "descricao": "DL *UBERRIDES", "valor": 8.94, "categoria_codigo": "2020.01", "parcela_atual": 1, "parcelas_total": 1, "final_cartao": "1111", "tipo": "compra"},
         {"data": "2026-09-12", "descricao": "ANTHROPIC", "valor": 53.09, "valor_usd": 9.70, "parcela_atual": 1, "parcelas_total": 1, "final_cartao": "1111", "tipo": "compra"},
         {"data": "2026-09-12", "descricao": "IOF DESPESA NO EXTERIOR", "valor": 1.86, "parcela_atual": 1, "parcelas_total": 1, "final_cartao": "1111", "tipo": "iof_exterior"},
         {"data": "2026-08-15", "descricao": "LOJA XYZ", "valor": 100.00, "parcela_atual": 3, "parcelas_total": 10, "final_cartao": "1111", "tipo": "compra"},
@@ -71,6 +71,7 @@ def test_previa_casa_o_que_existe_e_mostra_a_diferenca(cenario):
     pad = L["PADARIA MERCAPAO"]
     assert pad["casamento"]["valor_centavos"] == 3000 and pad["casamento"]["diferenca_centavos"] == 433 and pad["acao_sugerida"] == "atualizar"
     assert L["DL *UBERRIDES"]["acao_sugerida"] == "criar" and L["DL *UBERRIDES"]["favorecido_nome"] == "Uberrides"
+    assert L["DL *UBERRIDES"]["categoria_id"] == cenario["cat"]["id"] and L["DL *UBERRIDES"]["categoria_origem"] == "ia"   # categoria sugerida pela IA
     assert L["ANTHROPIC"]["valor_centavos"] == 5495 and L["ANTHROPIC"]["iof_centavos"] == 186        # IOF somado à compra
     assert "IOF DESPESA NO EXTERIOR" not in L
     assert L["PAGAMENTO FATURA"]["acao_sugerida"] == "ignorar" and L["JUROS"]["acao_sugerida"] == "ignorar"

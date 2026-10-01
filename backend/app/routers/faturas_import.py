@@ -82,6 +82,7 @@ def normalizar_linhas(bruto: dict, vencimento: date, fechamento: date) -> list[d
             "data": d, "descricao": (r.get("descricao") or "").strip()[:200], "tipo": "estorno_credito" if (valor < 0 and tipo == "compra") else tipo,
             "valor_centavos": abs(valor), "eh_credito": valor < 0 or tipo == "estorno_credito",
             "valor_usd": float(r.get("valor_usd") or 0), "final_cartao": re.sub(r"\D", "", r.get("final_cartao") or "")[-4:],
+            "categoria_codigo": (r.get("categoria_codigo") or "").strip(),
             "parcela_atual": max(1, int(r.get("parcela_atual") or 1)), "parcelas_total": max(1, int(r.get("parcelas_total") or 1)),
         })
     return saida
@@ -193,7 +194,13 @@ def montar_previa(cur, cartao_id, venc: date, fech: date, bruto_ia: dict, linhas
                               WHERE p.cartao_id = %s AND t.descricao = %s AND t.categoria_id IS NOT NULL ORDER BY t.criado_em DESC LIMIT 1""", (cartao_id, l["descricao"])).fetchone()
         l["favorecido_nome"] = fav["nome"] if fav else nome
         l["favorecido_id"] = fav["id"] if fav else None
-        l["categoria_id"] = (hist["categoria_id"] if hist else None) or (fav["categoria_padrao_id"] if fav else None)
+        cat = (hist["categoria_id"] if hist else None) or (fav["categoria_padrao_id"] if fav else None)
+        if not cat and l.get("categoria_codigo") and l["tipo"] in ("compra", "estorno_credito"):    # sugestão da IA, quando a loja é nova para você
+            r = cur.execute("SELECT id FROM categoria WHERE dono_id = %s AND ativa AND (codigo_origem = %s OR %s = ANY(codigos_alias)) ORDER BY (codigo_origem = %s) DESC NULLS LAST LIMIT 1",
+                            (k["dono_id"], l["categoria_codigo"], l["categoria_codigo"], l["categoria_codigo"])).fetchone()
+            cat = r["id"] if r else None
+            l["categoria_origem"] = "ia" if cat else None
+        l["categoria_id"] = cat
         if l["tipo"] in FORA_DA_CARGA:
             l["acao_sugerida"] = "ignorar"
             l["motivo"] = FORA_DA_CARGA[l["tipo"]]

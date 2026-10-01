@@ -143,6 +143,7 @@ SCHEMA_FATURA = {
             "parcelas_total": {"type": "INTEGER"},
             "final_cartao": {"type": "STRING"},
             "tipo": {"type": "STRING", "enum": ["compra", "iof_exterior", "estorno_credito", "pagamento", "encargo", "outro"]},
+            "categoria_codigo": {"type": "STRING"},
         }, "required": ["data", "descricao", "valor", "parcela_atual", "parcelas_total", "final_cartao", "tipo"]}},
     },
     "required": ["vencimento", "fechamento", "total_fatura", "linhas"],
@@ -163,8 +164,12 @@ linhas: UMA entrada para cada lançamento da seção de detalhamento (despesas, 
 - parcela_atual / parcelas_total: "03/10" => 3 e 10. Sem parcelamento: 1 e 1.
 - final_cartao: 4 últimos dígitos do cartão da seção em que o lançamento aparece (o cabeçalho de cada seção traz o número mascarado). Se não houver, string vazia.
 - tipo: "compra" para compras e parcelas; "iof_exterior" para a linha de IOF de compra no exterior (que fica logo abaixo da compra em moeda estrangeira; NÃO some o valor na compra, mantenha como linha separada logo depois dela); "estorno_credito" para estornos/créditos; "pagamento" para pagamentos da fatura anterior; "encargo" para juros, multa, anuidade e tarifas; "outro" para o resto.
+- categoria_codigo: para compras, escolha UM código da lista de categorias abaixo, o que melhor descreve o estabelecimento (ex.: supermercado, posto de combustível, farmácia, restaurante, aplicativo de transporte, assinatura de streaming). Para o que não for compra, ou se não souber, deixe string vazia.
 - Linhas de cotação do dólar ("COTAÇÃO DOLAR...") não são lançamentos: ignore-as.
 - Não invente linhas. Não repita linhas de subtotal ("VALOR TOTAL").
+
+Categorias (código = Grupo > Nome):
+{categorias}
 """
 
 MOCK_FATURA: dict | None = None   # os testes sobrescrevem
@@ -178,7 +183,7 @@ def extrair_fatura(dados: bytes) -> tuple[dict, dict]:
         raise GeminiErro("GEMINI_API_KEY não configurada no servidor")
     corpo = {
         "contents": [{"parts": [
-            {"text": PROMPT_FATURA},
+            {"text": PROMPT_FATURA.replace("{categorias}", catalogo_para_prompt())},
             {"inline_data": {"mime_type": "application/pdf", "data": base64.b64encode(dados).decode()}},
         ]}],
         "generationConfig": {"responseMimeType": "application/json", "responseSchema": SCHEMA_FATURA, "temperature": 0, "maxOutputTokens": 32768},
