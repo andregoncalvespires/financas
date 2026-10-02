@@ -517,13 +517,137 @@ async function camposInvestimento(inv) {
   };
 }
 
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svg(tag, attrs, ...filhos) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+  for (const f of filhos) if (f != null) el.appendChild(f instanceof Node ? f : document.createTextNode(String(f)));
+  return el;
+}
+const mesCurto = (ym) => { const [a, m] = ym.split('-'); return `${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][+m - 1]}/${a.slice(2)}`; };
+const brlK = (c) => { const v = c / 100; return Math.abs(v) >= 1e6 ? `${(v / 1e6).toFixed(1).replace('.', ',')} mi` : Math.abs(v) >= 1e3 ? `${Math.round(v / 1e3)} mil` : String(Math.round(v)); };
+const COR_CEN = { pessimista: 'var(--neg)', base: 'var(--marca)', otimista: 'var(--pos)' };
+const ROT_CEN = { pessimista: 'Pessimista', base: 'Base', otimista: 'Otimista' };
+
+// Gráfico de linhas: passado real (contínuo, cinza) + futuro estimado em 3 cenários (a base mais grossa).
+function graficoEvolucao(p, mostrar) {
+  const W = 340, H = 190, ML = 44, MR = 8, MT = 10, MB = 22;
+  const meses = [...p.passado.map(x => x[0]), ...p.cenarios.base.map(x => x[0])];
+  const idxFut = p.passado.length;                     // o ponto 0 do futuro (mês atual) é o mês seguinte ao passado
+  const series = [];
+  if (p.passado.length) series.push({ cor: 'var(--suave)', largura: 2, pts: p.passado.map((x, i) => [i, x[1]]) });
+  for (const k of ['pessimista', 'base', 'otimista']) if (mostrar[k]) series.push({ cor: COR_CEN[k], largura: k === 'base' ? 2.5 : 1.5, tracejado: k !== 'base', pts: p.cenarios[k].map((x, i) => [idxFut + i, x[1]]) });
+  const todos = series.flatMap(s => s.pts.map(q => q[1]));
+  let lo = Math.min(...todos), hi = Math.max(...todos);
+  if (hi === lo) { hi = lo + 100; }
+  const folga = (hi - lo) * 0.08; lo = Math.max(0, lo - folga); hi += folga;
+  const x = (i) => ML + (meses.length > 1 ? i * (W - ML - MR) / (meses.length - 1) : 0);
+  const y = (v) => MT + (H - MT - MB) * (1 - (v - lo) / (hi - lo));
+  const g = svg('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', role: 'img', 'aria-label': 'Evolução do patrimônio investido: passado e projeção' });
+  for (let t = 0; t <= 3; t++) {
+    const v = lo + (hi - lo) * t / 3;
+    g.appendChild(svg('line', { x1: ML, x2: W - MR, y1: y(v), y2: y(v), stroke: 'var(--borda)', 'stroke-width': 1 }));
+    g.appendChild(svg('text', { x: ML - 4, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 10, fill: 'var(--suave)' }, brlK(v * 1)));
+  }
+  [0, Math.floor((meses.length - 1) / 2), meses.length - 1].forEach((i, n) =>
+    g.appendChild(svg('text', { x: x(i), y: H - 6, 'text-anchor': n === 0 ? 'start' : n === 2 ? 'end' : 'middle', 'font-size': 10, fill: 'var(--suave)' }, mesCurto(meses[i]))));
+  if (p.passado.length) g.appendChild(svg('line', { x1: x(idxFut), x2: x(idxFut), y1: MT, y2: H - MB, stroke: 'var(--borda)', 'stroke-dasharray': '3 3' }));
+  for (const s of series) {
+    const d = s.pts.map(([i, v], n) => `${n ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+    g.appendChild(svg('path', { d, fill: 'none', stroke: s.cor, 'stroke-width': s.largura, 'stroke-linejoin': 'round', ...(s.tracejado ? { 'stroke-dasharray': '5 3' } : {}) }));
+  }
+  return g;
+}
+
+async function painelInvestimentos(horizonte, redesenhar) {
+  const p = await GET(`/api/investimentos/painel?meses=${horizonte}&historico=12`);
+  if (!p.contas.length || p.saldo_atual <= 0) return null;
+  const mostrar = { pessimista: true, base: true, otimista: true };
+  const area = h('div');
+  const desenhar = () => {
+    limpar(area).append(graficoEvolucao(p, mostrar));
+  };
+  desenhar();
+  const chips = Object.keys(COR_CEN).map(k => h('button', { class: 'chip ativo', style: `border-color:${COR_CEN[k]}`, onclick: (e) => {
+    mostrar[k] = !mostrar[k]; e.currentTarget.classList.toggle('ativo', mostrar[k]);
+    if (!Object.values(mostrar).some(Boolean)) { mostrar[k] = true; e.currentTarget.classList.add('ativo'); }
+    desenhar();
+  } }, ROT_CEN[k]));
+  const fim = (k) => p.cenarios[k][p.cenarios[k].length - 1][1];
+  const hz = h('select', { onchange: (e) => redesenhar(+e.target.value) }, [12, 24, 60, 120].map(n => h('option', { value: n }, n >= 24 ? `${n / 12} anos` : '12 meses')));
+  hz.value = String(horizonte);
+  const maxAloc = Math.max(...p.alocacao.map(a => a.saldo), 1);
+  return [
+    h('section', { class: 'cartao' },
+      h('div', { class: 'linha-controles' }, h('b', null, 'Patrimônio investido'), h('b', null, brl(p.saldo_atual))),
+      h('div', { class: 'linha-controles' }, h('small', { class: 'bloco' }, 'Projeção até'), hz),
+      area,
+      h('div', { class: 'chips' }, chips),
+      h('small', { class: 'bloco' }, 'Linha cinza: saldo real. Linhas coloridas: estimativa a partir das premissas (' + `base; pessimista e otimista deslocam Selic, CDI e IPCA em ${pct(p.deslocamento_pp)} ponto(s)).`),
+      h('table', { class: 'tabela-mini' },
+        h('tr', null, h('th', null, `Em ${horizonte >= 24 ? horizonte / 12 + ' anos' : '12 meses'}`), h('th', null, 'Bruto')),
+        ['pessimista', 'base', 'otimista'].map(k => h('tr', null, h('td', null, ROT_CEN[k]), h('td', null, brl(fim(k))))),
+        h('tr', null, h('td', null, 'Base, líquido de IR estimado'), h('td', null, brl(p.final_base_liquido))))),
+    h('section', { class: 'cartao' },
+      h('b', null, 'Alocação por tipo'),
+      h('div', { class: 'barras' }, p.alocacao.map(a => h('div', { class: 'barra' }, h('span', null, a.rotulo),
+        h('div', { class: 'trilho' }, h('div', { class: 'enchimento', style: `width:${Math.round(a.saldo / maxAloc * 100)}%` })), h('b', null, `${pct(a.percentual)}% · ${brl(a.saldo)}`))))),
+    h('button', { class: 'btn sec', onclick: () => simuladorInvestimento(p) }, 'Simular aporte ou resgate'),
+  ];
+}
+
+function simuladorInvestimento(p) {
+  folha('Simulador', (corpo) => {
+    const rendaveis = p.contas.filter(c => c.subtipo && !['renda_variavel', 'previdencia', 'outro'].includes(c.subtipo));
+    const sel = h('select', null, rendaveis.map(c => h('option', { value: c.id }, c.nome)), h('option', { value: '' }, 'Outra taxa (informar)'));
+    const taxa = h('input', { type: 'text', inputmode: 'decimal', value: '12', placeholder: 'Taxa bruta ao ano (%)' });
+    const saldo = h('input', { type: 'text', inputmode: 'decimal', value: '0,00' });
+    const inicial = h('input', { type: 'text', inputmode: 'decimal', value: '0,00' });
+    const mensal = h('input', { type: 'text', inputmode: 'decimal', value: '0,00' });
+    const resg = h('input', { type: 'text', inputmode: 'decimal', value: '0,00' });
+    const mesResg = h('input', { type: 'number', min: 1, inputmode: 'numeric', placeholder: 'Ex.: 12' });
+    const meses = h('input', { type: 'number', min: 1, max: 360, inputmode: 'numeric', value: 24 });
+    const cen = h('select', null, h('option', { value: '0' }, 'Base'), h('option', { value: '-2' }, 'Pessimista (−2 p.p.)'), h('option', { value: '2' }, 'Otimista (+2 p.p.)'));
+    const cTaxa = campo('Taxa bruta (% ao ano)', taxa), cSaldo = campo('Valor já investido (R$)', saldo);
+    const mostra = () => { cTaxa.style.display = cSaldo.style.display = sel.value ? 'none' : ''; };
+    sel.addEventListener('change', mostra); mostra();
+    const res = h('div');
+    const v = (el) => { const n = parseValor(el.value); if (Number.isNaN(n) || n < 0) throw new Error('Confira os valores em R$.'); return n; };
+    corpo.append(
+      h('p', { class: 'dica' }, 'Hipótese para planejamento: o aporte mensal entra no dia 1 de cada mês seguinte. Estimativa, não é recomendação.'),
+      campo('Investimento', sel), cTaxa, cSaldo, campo('Aporte hoje (R$)', inicial), campo('Aporte por mês (R$)', mensal),
+      campo('Resgate único (R$)', resg), campo('Resgate no mês número (opcional)', mesResg), campo('Prazo (meses)', meses), campo('Cenário', cen),
+      h('button', { class: 'btn', onclick: acao(async () => {
+        const corpoReq = { meses: Math.max(1, Math.min(360, +meses.value || 12)), delta_pp: +cen.value, aporte_inicial_centavos: v(inicial), aporte_mensal_centavos: v(mensal),
+          resgate_centavos: v(resg), mes_resgate: +mesResg.value || null };
+        if (sel.value) corpoReq.conta_id = sel.value;
+        else { const t = lerPct(taxa.value); if (t === null) throw new Error('Informe a taxa.'); corpoReq.taxa_aa = t; corpoReq.saldo_inicial_centavos = v(saldo); }
+        const r = await POST('/api/investimentos/simular', corpoReq);
+        limpar(res).append(h('table', { class: 'tabela-mini' },
+          h('tr', null, h('th', null, ''), h('th', null, 'Sem mudar nada'), h('th', null, 'Com a hipótese')),
+          h('tr', null, h('td', null, 'Saldo bruto'), h('td', null, brl(r.base.final_bruto)), h('td', null, brl(r.hipotese.final_bruto))),
+          h('tr', null, h('td', null, 'IR estimado'), h('td', null, brl(r.base.ir_estimado)), h('td', null, brl(r.hipotese.ir_estimado))),
+          h('tr', null, h('td', null, 'Saldo líquido'), h('td', null, brl(r.base.final_liquido)), h('td', null, brl(r.hipotese.final_liquido)))),
+          h('p', { class: 'dica' }, `Você colocaria ${brl(r.aportado_liquido)} a mais e ganharia ${brl(r.ganho_com_aportes)} de rendimento líquido estimado por causa disso.`));
+      }) }, 'Simular'), res);
+  });
+}
+
 async function investimentos(raiz, ctx) {
   await carregarCadastros();
   const r = await GET('/api/investimentos');
   const recarregar = () => investimentos(raiz, ctx);
   const hoje = hojeISO();
+  let horizonte = +(sessionStorage.getItem('fin-inv-hz') || 24);
+  const blocoPainel = h('div');
+  const montarPainel = async (hz) => {
+    horizonte = hz; try { sessionStorage.setItem('fin-inv-hz', String(hz)); } catch { /* sem storage: segue */ }
+    try { const nos = await painelInvestimentos(hz, montarPainel); limpar(blocoPainel).append(nos); } catch { limpar(blocoPainel); }
+  };
+  montarPainel(horizonte);
   limpar(raiz).append(voltar('Investimentos'),
     h('p', { class: 'dica' }, 'Estimativas para planejamento. O rendimento previsto aparece nos Próximos eventos; confirme com o valor real do extrato quando ele cair.'),
+    blocoPainel,
     h('a', { class: 'linha item', href: '#/mais/premissas' }, h('div', { class: 'corpo' }, h('b', null, 'Premissas'),
       h('small', { class: 'bloco' }, `CDI ${pct(r.premissas.cdi)}% · Selic ${pct(r.premissas.selic)}% · IPCA ${pct(r.premissas.ipca)}% ao ano`)), h('span', null, '›')),
     r.investimentos.length ? r.investimentos.map(i => {

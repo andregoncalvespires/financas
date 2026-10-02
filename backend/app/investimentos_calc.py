@@ -133,3 +133,59 @@ def projetar(inv: dict, prem: dict, saldo: int, ajustes: list[tuple[date, int]],
         if venc and d >= venc:
             break
     return out
+
+
+def fim_do_mes(m: date) -> date:
+    return date(m.year, m.month, monthrange(m.year, m.month)[1])
+
+
+def cenario_premissas(prem: dict, delta_pp: float) -> dict:
+    """Premissas deslocadas em `delta_pp` pontos percentuais (Selic, CDI e IPCA; nunca abaixo de zero). A TR não muda."""
+    p = dict(prem)
+    for k in ("selic", "cdi", "ipca"):
+        p[k] = max(0.0, prem[k] + delta_pp)
+    return p
+
+
+def serie_mensal(saldo: int, rendimentos: list[tuple[date, int]], ajustes: list[tuple[date, int]], hoje: date, meses: int) -> list[tuple[str, int]]:
+    """Saldo ao fim de cada mês, do mês atual até `meses` meses à frente: saldo de hoje + rendimentos + movimentos previstos até a data."""
+    out = []
+    for k in range(meses + 1):
+        fim = fim_do_mes(mes_mais(hoje.replace(day=1), k))
+        v = saldo + sum(r for d, r in rendimentos if d <= fim) + sum(a for d, a in ajustes if d <= fim)
+        out.append((f"{fim.year}-{fim.month:02d}", v))
+    return out
+
+
+def projetar_conta(inv: dict, prem: dict, saldo: int, ajustes: list[tuple[date, int]], hoje: date, meses: int,
+                   confirmados: frozenset = frozenset()) -> dict:
+    """Série mensal (bruta) + IR estimado ao fim do horizonte para UMA conta. Conta de valor manual fica parada no saldo atual."""
+    rend = projetar(inv, prem, saldo, ajustes, hoje, meses, confirmados)
+    serie = serie_mensal(saldo, rend, ajustes, hoje, meses)
+    total_rend = sum(r for _, r in rend)
+    fim = fim_do_mes(mes_mais(hoje.replace(day=1), meses))
+    if inv.get("isento_ir") or inv["indexador"] == "manual":
+        aliq = 0.0
+    else:
+        ini = inv.get("data_aplicacao")
+        aliq = aliquota_ir((fim - ini).days if ini else 0)
+    ir = round(total_rend * aliq)
+    return {"serie": serie, "rendimento_bruto": total_rend, "ir_estimado": ir, "aliquota_ir": aliq,
+            "final_bruto": serie[-1][1], "final_liquido": serie[-1][1] - ir}
+
+
+def simular(inv: dict, prem: dict, saldo: int, ajustes: list[tuple[date, int]], hoje: date, meses: int,
+            aporte_inicial: int = 0, aporte_mensal: int = 0, resgate: int = 0, mes_resgate: int | None = None) -> dict:
+    """Hipótese: aporte inicial hoje, aporte mensal no dia 1 de cada mês seguinte e um resgate único no mês `mes_resgate` (1..meses).
+    Compara com o caminho sem nada disso. Estimativa: o IR do cenário é a alíquota do fim do horizonte sobre o rendimento total."""
+    base = projetar_conta(inv, prem, saldo, ajustes, hoje, meses)
+    extra = [(hoje, aporte_inicial)] if aporte_inicial else []
+    for k in range(1, meses + 1):
+        if aporte_mensal:
+            extra.append((mes_mais(hoje.replace(day=1), k), aporte_mensal))
+    if resgate and mes_resgate:
+        extra.append((mes_mais(hoje.replace(day=1), mes_resgate), -resgate))
+    hip = projetar_conta(inv, prem, saldo + 0, ajustes + extra, hoje, meses)
+    aportado = aporte_inicial + aporte_mensal * meses - (resgate if mes_resgate else 0)
+    return {"base": base, "hipotese": hip, "aportado_liquido": aportado,
+            "ganho_com_aportes": hip["final_liquido"] - base["final_liquido"] - aportado}

@@ -9,8 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from .. import mailer
 from ..db import sessao
 from ..deps import Usuario, get_db, usuario_atual
-from ..investimentos_calc import (SUBTIPOS, aliquota_para, mes_mais, premissas_com_padrao, projetar)
-from ..schemas import AtualizarValorIn, InvestimentoIn, PremissasIn
+from ..investimentos_calc import (SUBTIPOS, aliquota_para, cenario_premissas, fim_do_mes, mes_mais, premissas_com_padrao, projetar,
+                                  projetar_conta, simular)
+from ..schemas import AtualizarValorIn, InvestimentoIn, PremissasIn, SimularIn
 
 log = logging.getLogger("uvicorn.error.invest")
 router = APIRouter(prefix="/api")
@@ -74,6 +75,130 @@ def listar(cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
             item["dias_para_vencimento"] = (r["data_vencimento"] - hoje).days if r["data_vencimento"] else None
         out.append(item)
     return {"premissas": prem, "investimentos": out}
+
+
+CENARIOS = (("pessimista", -2.0), ("base", 0.0), ("otimista", 2.0))     # deslocamento em pontos percentuais de Selic/CDI/IPCA
+
+
+def _contas_invest(cur, so_conta=None):
+    """Contas de investimento visíveis ao usuário, com saldo de hoje e (se configuradas) o cadastro do investimento."""
+    filtro = " AND c.id = %s" if so_conta else ""
+    return cur.execute(
+        f"""SELECT c.id, c.nome, c.dono_id, c.data_saldo_inicial, c.saldo_inicial_centavos, {SALDO} AS saldo, i.subtipo, i.indexador, i.taxa, i.dia_aniversario,
+                   i.data_vencimento, i.isento_ir, i.data_aplicacao
+            FROM conta c LEFT JOIN investimento i ON i.conta_id = c.id
+            WHERE NOT c.inativa AND (c.tipo = 'investimento' OR i.conta_id IS NOT NULL){filtro} ORDER BY c.nome""",
+        (so_conta,) if so_conta else ()).fetchall()
+
+
+def _inv_ou_manual(r: dict) -> dict:
+    d = dict(r)
+    if not d.get("indexador"):                    # conta de investimento ainda sem cadastro: parada no saldo atual
+        d.update(indexador="manual", taxa=None, dia_aniversario=None, isento_ir=True)
+    return d
+
+
+def _ajustes_e_confirmados(cur, r, inicio_mes):
+    ajustes = [(t["data_caixa"], t["valor_centavos"]) for t in cur.execute(
+        "SELECT data_caixa, valor_centavos FROM transacao WHERE conta_id = %s AND estado = 'previsto' AND origem <> 'rendimento' AND data_caixa >= %s",
+        (r["id"], r["data_saldo_inicial"])).fetchall()]
+    conf = frozenset((t["data_competencia"].year, t["data_competencia"].month) for t in cur.execute(
+        "SELECT data_competencia FROM transacao WHERE conta_id = %s AND origem = 'rendimento' AND estado IN ('confirmado','conciliado') AND data_competencia >= %s",
+        (r["id"], inicio_mes)).fetchall())
+    return ajustes, conf
+
+
+@router.get("/investimentos/painel")
+def painel(meses: int = 24, historico: int = 12, cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Evolução (saldo ao fim de cada mês: passado real + futuro estimado em 3 cenários), alocação por tipo e totais. Estimativa."""
+    meses = max(1, min(meses, 120))
+    historico = max(0, min(historico, 60))
+    hoje = date.today()
+    inicio_mes = hoje.replace(day=1)
+    prem = _premissas(cur, usuario.id)
+    contas = _contas_invest(cur)
+    ids = [c["id"] for c in contas]
+    # passado: saldo real ao fim de cada um dos últimos meses (movimentos confirmados)
+    passado = []
+    if ids and historico:
+        mov = {}
+        for t in cur.execute(
+                """SELECT t.conta_id, date_trunc('month', t.data_caixa)::date AS mes, SUM(t.valor_centavos)::bigint AS v
+                   FROM transacao t JOIN conta c ON c.id = t.conta_id
+                   WHERE t.conta_id = ANY(%s) AND t.estado IN ('confirmado','conciliado') AND t.data_caixa >= c.data_saldo_inicial
+                   GROUP BY 1, 2""", (ids,)).fetchall():
+            mov.setdefault(t["conta_id"], {})[t["mes"]] = t["v"]
+        for k in range(historico, 0, -1):
+            fim = fim_do_mes(mes_mais(inicio_mes, -k))
+            total = 0
+            tem = False
+            for c in contas:
+                if fim < c["data_saldo_inicial"]:
+                    continue
+                tem = True
+                total += c["saldo_inicial_centavos"] + sum(v for m, v in mov.get(c["id"], {}).items() if m <= fim.replace(day=1))
+            if tem:
+                passado.append([f"{fim.year}-{fim.month:02d}", total])
+    # futuro: 3 cenários
+    cenarios = {}
+    por_conta = []
+    ir_total = 0
+    for nome, delta in CENARIOS:
+        p = cenario_premissas(prem, delta)
+        soma = None
+        for c in contas:
+            ajustes, conf = _ajustes_e_confirmados(cur, c, inicio_mes)
+            pc = projetar_conta(_inv_ou_manual(c), p, c["saldo"], ajustes, hoje, meses, conf)
+            soma = [[m, v] for m, v in pc["serie"]] if soma is None else [[m, a + v] for (m, a), (_, v) in zip(soma, pc["serie"])]
+            if nome == "base":
+                por_conta.append({"id": c["id"], "nome": c["nome"], "subtipo": c["subtipo"], "saldo_atual": c["saldo"],
+                                  "final_bruto": pc["final_bruto"], "final_liquido": pc["final_liquido"], "rendimento_bruto": pc["rendimento_bruto"],
+                                  "ir_estimado": pc["ir_estimado"]})
+            if nome == "base":
+                ir_total += pc["ir_estimado"]
+        cenarios[nome] = soma or []
+    # alocação por tipo (saldo de hoje)
+    total_hoje = sum(c["saldo"] for c in contas)
+    aloc = {}
+    for c in contas:
+        chave = c["subtipo"] or "outro"
+        a = aloc.setdefault(chave, {"subtipo": chave, "rotulo": SUBTIPOS[chave][0] if chave in SUBTIPOS else "Sem cadastro", "saldo": 0})
+        a["saldo"] += c["saldo"]
+    alocacao = sorted(({**a, "percentual": round(a["saldo"] * 100 / total_hoje, 1) if total_hoje > 0 else 0} for a in aloc.values() if a["saldo"] != 0),
+                      key=lambda a: -a["saldo"])
+    base_final = cenarios["base"][-1][1] if cenarios.get("base") else 0
+    return {"premissas": prem, "deslocamento_pp": CENARIOS[2][1], "meses": meses, "saldo_atual": total_hoje, "passado": passado, "cenarios": cenarios,
+            "alocacao": alocacao, "contas": por_conta, "final_base_bruto": base_final, "ir_estimado_base": ir_total,
+            "final_base_liquido": base_final - ir_total}
+
+
+@router.post("/investimentos/simular")
+def simular_rota(body: SimularIn, cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Simulador de aporte/resgate sobre uma conta existente (premissas e cadastro dela) ou sobre uma taxa anual informada."""
+    hoje = date.today()
+    prem = cenario_premissas(_premissas(cur, usuario.id), body.delta_pp)
+    if body.mes_resgate and body.mes_resgate > body.meses:
+        raise HTTPException(422, "o mês do resgate fica depois do fim da simulação")
+    if body.conta_id:
+        rs = _contas_invest(cur, body.conta_id)
+        if not rs:
+            raise HTTPException(404, "conta de investimento não encontrada")
+        c = rs[0]
+        inv = _inv_ou_manual(c)
+        if inv["indexador"] == "manual":
+            raise HTTPException(422, "esta conta tem valor informado à mão: não há como estimar o rendimento")
+        ajustes, _ = _ajustes_e_confirmados(cur, c, hoje.replace(day=1))
+        saldo = c["saldo"]
+    else:
+        if body.taxa_aa is None:
+            raise HTTPException(422, "informe a conta ou a taxa anual")
+        inv = {"indexador": "prefixado", "taxa": body.taxa_aa, "dia_aniversario": hoje.day, "data_vencimento": None, "isento_ir": False,
+               "data_aplicacao": hoje}
+        ajustes, saldo = [], body.saldo_inicial_centavos
+    r = simular(inv, prem, saldo, ajustes, hoje, body.meses, body.aporte_inicial_centavos, body.aporte_mensal_centavos,
+                body.resgate_centavos, body.mes_resgate)
+    r["saldo_inicial"] = saldo
+    return r
 
 
 @router.put("/contas/{cid}/investimento")

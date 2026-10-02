@@ -85,6 +85,18 @@ class AtualizarValorIn(BaseModel):
     data: Optional[date] = None
 
 
+class SimularIn(BaseModel):
+    conta_id: Optional[str] = None                        # sem conta: usa taxa_aa e saldo_inicial_centavos informados
+    taxa_aa: Optional[float] = Field(default=None, ge=0, le=100)
+    saldo_inicial_centavos: int = Field(default=0, ge=0)
+    aporte_inicial_centavos: int = Field(default=0, ge=0)
+    aporte_mensal_centavos: int = Field(default=0, ge=0)
+    resgate_centavos: int = Field(default=0, ge=0)
+    mes_resgate: Optional[int] = Field(default=None, ge=1, le=360)
+    meses: int = Field(default=12, ge=1, le=360)
+    delta_pp: float = Field(default=0, ge=-10, le=10)      # desloca Selic/CDI/IPCA neste cenário
+
+
 class ConviteContaIn(BaseModel):
     email: EmailStr
     papel: Literal["leitor", "editor", "gestor"] = "editor"

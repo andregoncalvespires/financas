@@ -60,6 +60,7 @@ If something does not work, see [Common problems](#common-problems).
 **Investments**
 - Investment accounts with a **subtype** (savings, Tesouro Selic, Prefixado and IPCA+, CDB, LCI, LCA, LC, LA, debentures, CRI/CRA, fixed-income funds, pension plans and variable income), yield rate, **anniversary day** and **maturity date**.
 - The app **estimates the yield** for the coming months (it creates planned income entries on the anniversary day); when the statement arrives you confirm the real value and the following estimates are redone. The screen shows gross and **estimated net** yield (regressive income tax on fixed income; savings, LCI and LCA are exempt).
+- **Evolution and scenarios:** More › Investments shows a chart with the real balance of the past months and a projection in three scenarios (base, pessimistic and optimistic, shifting Selic, CDI and IPCA by 2 points), the **allocation by type** and a **simulator** for monthly contributions and withdrawals (on one of your accounts or on a rate you enter).
 - **Assumptions** (Selic, CDI, IPCA, TR) are set by you in More › Investments; nothing is fetched from the internet. Variable income and pension plans are entered as a **value you inform**.
 - **Maturity alert** in upcoming events and an **e-mail to the account owner** before it matures (lead time is configurable). Everything is an estimate for planning, not investment advice.
 

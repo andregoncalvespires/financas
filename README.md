@@ -60,6 +60,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 **Investimentos**
 - Contas de investimento com **subtipo** (poupança, Tesouro Selic, Prefixado e IPCA+, CDB, LCI, LCA, LC, LA, debêntures, CRI/CRA, fundos de renda fixa, previdência e renda variável), taxa de rendimento, **dia de aniversário** e **data de vencimento**.
 - O app **estima o rendimento** dos próximos meses (cria lançamentos previstos de receita no dia de aniversário); quando o extrato chegar, você confirma com o valor real e as estimativas seguintes são refeitas. A tela mostra o rendimento bruto e o **líquido estimado** (IR regressivo da renda fixa; poupança, LCI e LCA isentas).
+- **Evolução e cenários:** em Mais › Investimentos há um gráfico com o saldo real dos últimos meses e a projeção em três cenários (base, pessimista e otimista, deslocando Selic, CDI e IPCA em 2 pontos), a **alocação por tipo** e um **simulador** de aporte mensal e resgate (sobre uma das suas contas ou sobre uma taxa que você informa).
 - **Premissas** (Selic, CDI, IPCA, TR) são definidas por você em Mais › Investimentos; nada é buscado na internet. Renda variável e previdência entram como **valor informado por você**.
 - **Alerta de vencimento** nos Próximos eventos e **e-mail ao dono da conta** antes de vencer (a antecedência é configurável). Tudo é estimativa para planejamento, não recomendação de investimento.
 

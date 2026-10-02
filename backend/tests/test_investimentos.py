@@ -181,3 +181,51 @@ def test_dois_rendimentos_no_mesmo_mes(nova_pessoa):
     cfg(a, c, dia_aniversario=dia, data_vencimento=(base + timedelta(days=2)).isoformat())
     meses = [d[:7] for d, _, _ in rend(a, c)]
     assert len(meses) >= 2 and meses[-1] == meses[-2]
+
+
+# ---------- painel (evolução, cenários, alocação) e simulador ----------
+def test_painel_cenarios_alocacao_e_permissao(nova_pessoa):
+    a, b = nova_pessoa("pa"), nova_pessoa("pb")
+    c1 = invest(a, "CDB", 1000000)
+    cfg(a, c1)
+    c2 = conta(a, "Ações", 500000, tipo="investimento")
+    a.put(f"/api/contas/{c2['id']}/investimento", json={"subtipo": "renda_variavel"})
+    r = a.get("/api/investimentos/painel", params={"meses": 12}).json()
+    assert r["saldo_atual"] == 1500000
+    assert [x["rotulo"] for x in r["alocacao"]] == ["CDB", "Renda variável (ações, FIIs, ETFs)"]
+    assert abs(sum(x["percentual"] for x in r["alocacao"]) - 100) < 0.2
+    assert set(r["cenarios"]) == {"pessimista", "base", "otimista"} and all(len(v) == 13 for v in r["cenarios"].values())
+    fim = {k: v[-1][1] for k, v in r["cenarios"].items()}
+    assert fim["pessimista"] < fim["base"] < fim["otimista"]
+    assert fim["pessimista"] >= 1500000                                  # renda variável fica parada; CDB só rende
+    assert r["final_base_liquido"] < r["final_base_bruto"] and r["ir_estimado_base"] > 0
+    # outra pessoa não vê nada
+    assert b.get("/api/investimentos/painel").json()["saldo_atual"] == 0
+
+
+def test_painel_historico_usa_saldo_real(nova_pessoa):
+    a = nova_pessoa("ph")
+    c = invest(a, "CDB", 1000000)
+    cfg(a, c)
+    h = a.get("/api/investimentos/painel", params={"meses": 1, "historico": 3}).json()["passado"]
+    assert len(h) <= 3 and all(v == 1000000 for _, v in h)
+
+
+def test_simulador_aporte_e_validacoes(nova_pessoa):
+    a = nova_pessoa("ps")
+    c = invest(a, "CDB", 1000000)
+    cfg(a, c)
+    r = a.post("/api/investimentos/simular", json={"conta_id": c["id"], "meses": 12, "aporte_mensal_centavos": 50000}).json()
+    assert r["aportado_liquido"] == 600000
+    assert r["hipotese"]["final_bruto"] > r["base"]["final_bruto"] + 600000 - 1
+    assert r["ganho_com_aportes"] > 0
+    # sem conta: precisa da taxa
+    assert a.post("/api/investimentos/simular", json={"meses": 12}).status_code == 422
+    r = a.post("/api/investimentos/simular", json={"taxa_aa": 12, "saldo_inicial_centavos": 100000, "meses": 24}).json()
+    assert r["hipotese"]["final_bruto"] > 100000
+    # resgate depois do fim, conta manual e conta alheia
+    assert a.post("/api/investimentos/simular", json={"conta_id": c["id"], "meses": 6, "resgate_centavos": 1, "mes_resgate": 7}).status_code == 422
+    m = conta(a, "Ações", 100, tipo="investimento")
+    a.put(f"/api/contas/{m['id']}/investimento", json={"subtipo": "renda_variavel"})
+    assert a.post("/api/investimentos/simular", json={"conta_id": m["id"], "meses": 6}).status_code == 422
+    assert a.post("/api/investimentos/simular", json={"conta_id": "00000000-0000-0000-0000-000000000000", "meses": 6}).status_code == 404

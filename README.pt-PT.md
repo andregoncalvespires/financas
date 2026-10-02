@@ -60,6 +60,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 **Investimentos**
 - Contas de investimento com **subtipo** (poupança, Tesouro Selic, Prefixado e IPCA+, CDB, LCI, LCA, LC, LA, obrigações, CRI/CRA, fundos de rendimento fixo, previdência e rendimento variável), taxa de rendimento, **dia de aniversário** e **data de vencimento**.
 - A aplicação **estima o rendimento** dos próximos meses (cria movimentos previstos de receita no dia de aniversário); quando o extrato chegar, confirma com o valor real e as estimativas seguintes são refeitas. O ecrã mostra o rendimento bruto e o **líquido estimado** (IR regressivo da renda fixa; poupança, LCI e LCA isentas).
+- **Evolução e cenários:** em Mais › Investimentos há um gráfico com o saldo real dos últimos meses e a projeção em três cenários (base, pessimista e otimista, deslocando Selic, CDI e IPCA em 2 pontos), a **alocação por tipo** e um **simulador** de entrada mensal e resgate (sobre uma das suas contas ou sobre uma taxa que indicar).
 - As **premissas** (Selic, CDI, IPCA, TR) são definidas por si em Mais › Investimentos; nada é obtido na internet. Rendimento variável e previdência entram como **valor informado por si**.
 - **Alerta de vencimento** nos Próximos eventos e **e-mail ao dono da conta** antes de vencer (a antecedência é configurável). Tudo é estimativa para planeamento, não recomendação de investimento.
 
