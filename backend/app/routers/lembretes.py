@@ -8,11 +8,12 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/lembretes")
-def lembretes(dias: int = Query(7, ge=0, le=90), cur=Depends(get_db)):
+def lembretes(dias: int = Query(7, ge=0, le=90), ate: date | None = Query(None), cur=Depends(get_db)):
     """O que ainda precisa acontecer: lançamentos previstos das contas e faturas de cartão em aberto, até hoje + N dias,
     mais tudo o que já está atrasado. Cada pessoa vê apenas o que as suas permissões permitem."""
     hoje = date.today()
-    ate = hoje + timedelta(days=dias)
+    # `ate` (data final, por exemplo o fim de um mês) tem prioridade sobre `dias`; no máximo ~13 meses à frente
+    ate = min(ate, hoje + timedelta(days=400)) if ate else hoje + timedelta(days=dias)
     itens = []
     for r in cur.execute(
             """SELECT t.id, t.tipo AS natureza, t.valor_centavos, t.data_caixa AS data, t.descricao, f.nome AS favorecido_nome,

@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api")
 def saldo_disponivel(ate: date | None = None, cur=Depends(get_db)):
     """Saldo que sobra de verdade: saldo atual menos o que já está comprometido até a data (previstos e faturas de cartão).
     Sem subdivisões manuais: tudo é calculado a partir dos lançamentos previstos."""
-    ate = ate or (date.today() + timedelta(days=30))
+    ate = min(ate, date.today() + timedelta(days=400)) if ate else date.today() + timedelta(days=30)
     contas = cur.execute(SQL_CONTAS + " WHERE NOT c.inativa ORDER BY c.nome").fetchall()
     previstos = cur.execute(
         """SELECT t.conta_id, COALESCE(t.forma_pagamento, 'outro') AS forma,

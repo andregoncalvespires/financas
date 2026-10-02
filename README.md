@@ -55,7 +55,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Contas e saldos**
 - Contas correntes, poupança, investimentos, dinheiro em espécie, contas de terceiros e **benefícios** (vale-refeição, vale-alimentação) com **recarga mensal** automática, que você pode ajustar ou desativar. Você cria seus próprios **tipos de conta**.
-- **Saldo disponível calculado**: saldo atual menos o que está previsto para sair (contas a pagar, faturas e transferências planejadas) no período escolhido, de 7 a 90 dias.
+- **Saldo disponível calculado**: saldo atual menos o que está previsto para sair (contas a pagar, faturas e transferências planejadas) nos meses escolhidos (só este mês, este e o próximo, 3 ou 6 meses, sempre até o fim do mês), e a escolha fica lembrada no aparelho.
 
 **Lançamentos**
 - Despesas, receitas e **transferências entre contas** (da corrente para a poupança, para o dinheiro etc.), que não distorcem as receitas e despesas do mês.

@@ -55,7 +55,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Contas e saldos**
 - Contas à ordem, poupança, investimentos, dinheiro vivo, contas de terceiros e **benefícios** (cartão de refeição ou de alimentação) com **carregamento mensal** automático, que pode ajustar ou desativar. Cria os seus próprios **tipos de conta**.
-- **Saldo disponível calculado**: saldo atual menos o que está previsto sair (contas a pagar, faturas e transferências planeadas) no período escolhido, de 7 a 90 dias.
+- **Saldo disponível calculado**: saldo atual menos o que está previsto sair (contas a pagar, faturas e transferências planeadas) nos meses escolhidos (só este mês, este e o próximo, 3 ou 6 meses, sempre até o fim do mês), e a escolha fica lembrada no aparelho.
 
 **Movimentos**
 - Despesas, receitas e **transferências entre contas** (da conta à ordem para a poupança, para o dinheiro, etc.), que não distorcem as receitas e despesas do mês.

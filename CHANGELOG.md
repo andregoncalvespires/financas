@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.15.0 — 2026-10-02
+- **Início: período por meses fechados.** O quadro de posição (Disponível, Benefícios, Total...) e os **Próximos eventos** deixam de usar "próximos N dias" e passam a usar meses completos: **só este mês**, **este mês e o próximo** (novo padrão), **este mês e os 2 seguintes** ou **este mês e os 5 seguintes**, sempre até o último dia do mês final (o título mostra a data, por exemplo "Posição até 30/11"). Assim o número não muda só porque o dia passou. O que está atrasado continua entrando na conta, e a escolha fica lembrada no aparelho. As rotas de saldo e de lembretes ganharam o parâmetro `ate` (data final); o parâmetro `dias` continua funcionando.
+
 ## 1.14.0 — 2026-10-02
 - **Área de administração (opcional, somente leitura).** Preenchendo `ADMIN_EMAIL` no `docker-compose.yml`, quem entra com esse e-mail vê **Mais › Administração**: lista de pessoas cadastradas com data de cadastro, último acesso e número de contas e cartões ativos de que cada uma é dona. Não mostra lançamentos, valores nem nomes de contas. Com `ADMIN_EMAIL` vazio (padrão), ninguém tem acesso e a área nem aparece; instalações existentes não mudam nada.
 - **"Pagador" nas receitas.** Nos formulários de lançamento e de recorrência, o campo que se chama "Favorecido" passa a se chamar **Pagador** quando o lançamento é uma receita.

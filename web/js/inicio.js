@@ -9,7 +9,13 @@ const GRUPOS = {
   investimento: ['poupanca', 'investimento'],
   outros: ['terceiros'],
 };
-let dias = 30;           // período do resumo e dos próximos eventos
+// Período do quadro e dos próximos eventos: meses fechados (1 = só este mês, 2 = este e o próximo...). Lembrado neste aparelho.
+const OPCOES_MESES = [[1, 'Só este mês'], [2, 'Este mês e o próximo'], [3, 'Este mês e os 2 seguintes'], [6, 'Este mês e os 5 seguintes']];
+let meses = (() => { try { const v = +localStorage.getItem('fin-meses-resumo'); return OPCOES_MESES.some(o => o[0] === v) ? v : 2; } catch { return 2; } })();
+function fimDoPeriodo(n) {
+  const d = new Date(new Date().getFullYear(), new Date().getMonth() + n, 0);   // último dia do mês final
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 let geradoMes = null;
 let mesResumo = null;    // mês do quadro "Resumo de ..." (null = mês atual)
 
@@ -25,11 +31,10 @@ async function gerarRecorrencias() {
 }
 
 export async function inicio(raiz, ctx) {
-  const ate = new Date(Date.now() + dias * 864e5);
-  const ateISO = `${ate.getFullYear()}-${String(ate.getMonth() + 1).padStart(2, '0')}-${String(ate.getDate()).padStart(2, '0')}`;
+  const ateISO = fimDoPeriodo(meses);
   const mes = mesISO();
   await gerarRecorrencias();
-  const [sd, resumo, caps, lem] = await Promise.all([GET(`/api/saldo-disponivel?ate=${ateISO}`), GET(`/api/resumo/mensal?mes=${mesResumo || mes}`), GET('/api/capturas'), GET(`/api/lembretes?dias=${dias}`)]);
+  const [sd, resumo, caps, lem] = await Promise.all([GET(`/api/saldo-disponivel?ate=${ateISO}`), GET(`/api/resumo/mensal?mes=${mesResumo || mes}`), GET('/api/capturas'), GET(`/api/lembretes?ate=${ateISO}`)]);
   const contas = sd.contas;
   const soma = (classes, f) => contas.filter(c => classes.includes(c.tipo)).reduce((a, c) => a + f(c), 0);
   const livre = (classes) => soma(classes, c => c.livre);
@@ -41,8 +46,8 @@ export async function inicio(raiz, ctx) {
     h('section', { class: 'cartao destaque' },
       h('div', { class: 'linha-controles' },
         h('div', { class: 'rotulo' }, `Posição até ${dataCurta(sd.ate)}`),
-        h('select', { 'aria-label': 'Período', value: String(dias), onchange: (e) => { dias = +e.target.value; inicio(raiz, ctx); } },
-          [7, 15, 30, 60, 90].map(d => h('option', { value: d }, `próx. ${d} dias`)))),
+        h('select', { 'aria-label': 'Período', value: String(meses), onchange: (e) => { meses = +e.target.value; try { localStorage.setItem('fin-meses-resumo', String(meses)); } catch { /* sem armazenamento */ } inicio(raiz, ctx); } },
+          OPCOES_MESES.map(([n, rot]) => h('option', { value: n }, rot)))),
       quadroResumo(livre),
       h('div', { class: 'formula' },
         h('span', null, 'Saldo ', h('b', null, brl(total(c => c.saldo_atual)))),
@@ -169,6 +174,6 @@ function blocoEventos(l, recarregar) {
           h('span', { class: 'seta' }, abre ? '▾' : '▸'), h('b', null, rotulo(g)), h('small', null, `${g.itens.length} evento${g.itens.length > 1 ? 's' : ''}`),
           h('span', { class: 'grupo-total ' + (saldo < 0 ? 'neg' : saldo > 0 ? 'pos' : '') }, saldo ? brl(saldo) : '')),
         abre ? g.itens.map(i => linha(i, g.chave === 'atrasados')) : null);
-    }) : vazio(`Nada pendente nos próximos ${dias} dias.`));
+    }) : vazio('Nada pendente neste período.'));
   return secao;
 }
