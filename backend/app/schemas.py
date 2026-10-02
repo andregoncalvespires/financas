@@ -195,6 +195,7 @@ class TransacaoPatch(BaseModel):
     forma_pagamento: Optional[str] = None
     estado: Optional[Literal["previsto", "confirmado"]] = None
     conta_id: Optional[UUID] = None
+    propagar: bool = False                  # lançamento de recorrência: aplica a mudança também aos previstos dos meses seguintes
 
 
 class TransferenciaIn(BaseModel):
@@ -237,6 +238,7 @@ class RecorrenciaPatch(BaseModel):
 
 class GerarRecorrenciasIn(BaseModel):
     mes: str = Field(pattern=r"^\d{4}-\d{2}$")
+    ate: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}$")   # último mês a gerar (AAAA-MM); sem ele, só `mes`
 
 
 class LinhaFaturaIn(BaseModel):

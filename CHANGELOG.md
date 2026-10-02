@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.16.0 — 2026-10-02
+- **Recorrências aparecem nos meses seguintes.** O app agora cria sozinho os lançamentos **previstos** de cada recorrência para o mês atual e os 5 seguintes (uma janela que anda, nunca infinita). Com isso eles entram no Disponível, nos Próximos eventos, nas faturas de cartão e no orçamento dos períodos de 2, 3 e 6 meses. Na lista de Lançamentos eles ganham a marca "↻ recorrente".
+- **Edição e exclusão com alcance à sua escolha.** Ao excluir um lançamento recorrente: **só este mês** (pula o mês) ou **este e os próximos** (a recorrência termina no mês anterior e os previstos dali em diante saem). Ao editar um lançamento previsto de recorrência, a opção **Aplicar também aos meses seguintes** muda a recorrência e refaz os previstos seguintes. Ao excluir a recorrência, você escolhe entre remover também os previstos ou **mantê-los como lançamentos avulsos**. O que já foi confirmado nunca é apagado. Editar ou pausar uma recorrência passa a completar os previstos até o horizonte.
+
 ## 1.15.0 — 2026-10-02
 - **Início: período por meses fechados.** O quadro de posição (Disponível, Benefícios, Total...) e os **Próximos eventos** deixam de usar "próximos N dias" e passam a usar meses completos: **só este mês**, **este mês e o próximo** (novo padrão), **este mês e os 2 seguintes** ou **este mês e os 5 seguintes**, sempre até o último dia do mês final (o título mostra a data, por exemplo "Posição até 30/11"). Assim o número não muda só porque o dia passou. O que está atrasado continua entrando na conta, e a escolha fica lembrada no aparelho. As rotas de saldo e de lembretes ganharam o parâmetro `ate` (data final); o parâmetro `dias` continua funcionando.
 

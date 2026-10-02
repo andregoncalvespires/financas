@@ -63,7 +63,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 - **Previsto ou efetivado**: planeje pagamentos e recebimentos futuros, confirme quando acontecerem ou volte um lançamento para previsto se confirmou por engano. Compras no cartão não têm essa opção: elas entram na fatura e só saem do saldo quando a fatura é paga (as parcelas futuras ficam previstas automaticamente).
 - **Selecionar vários e excluir**: em Lançamentos, o botão *Selecionar* permite marcar várias linhas (ou todas as do filtro atual) e excluir de uma vez, inclusive o parcelamento inteiro. O que não puder ser excluído é avisado, e o resto é excluído.
 - Nas receitas, o campo que identifica a outra parte aparece como **Pagador** (nas despesas, *Favorecido*).
-- **Recorrências** (aluguel, salário, assinaturas), parcelamentos, favorecidos com categoria sugerida e um plano de categorias enxuto que você edita e pode mesclar.
+- **Recorrências** (aluguel, salário, assinaturas): o app cria sozinho os lançamentos previstos do mês atual e dos 5 seguintes, então eles aparecem no Disponível e nos próximos eventos. Ao editar ou excluir você escolhe o alcance: só aquele mês, ou ele e os próximos (o que já foi confirmado nunca é apagado). Também há parcelamentos, favorecidos com categoria sugerida e um plano de categorias enxuto que você edita e pode mesclar.
 
 **Cartão de crédito**
 - Faturas com fechamento e vencimento, compras parceladas e pagamento da fatura a partir de uma conta.

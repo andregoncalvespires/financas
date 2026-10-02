@@ -63,7 +63,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 - **Previsto ou efetivado**: planeie pagamentos e recebimentos futuros, confirme quando acontecerem ou volte a pôr um movimento como previsto se o confirmou por engano. As compras no cartão não têm esta opção: entram na fatura e só saem do saldo quando a fatura é paga (as prestações futuras ficam previstas automaticamente).
 - **Selecionar vários e eliminar**: em Lançamentos, o botão *Selecionar* permite marcar várias linhas (ou todas as do filtro atual) e eliminar de uma vez, incluindo o parcelamento inteiro. O que não puder ser eliminado é assinalado, e o resto é eliminado.
 - Nas receitas, o campo que identifica a outra parte aparece como **Pagador** (nas despesas, *Favorecido*).
-- **Movimentos recorrentes** (renda, ordenado, subscrições), compras a prestações, beneficiários com categoria sugerida e um plano de categorias enxuto que pode editar e fundir.
+- **Movimentos recorrentes** (renda, ordenado, subscrições): a aplicação cria sozinha os lançamentos previstos do mês atual e dos 5 seguintes, pelo que aparecem no Disponível e nos próximos eventos. Ao editar ou eliminar escolhe o alcance: só esse mês, ou esse e os seguintes (o que já foi confirmado nunca é apagado). Há também compras a prestações, beneficiários com categoria sugerida e um plano de categorias enxuto que pode editar e fundir.
 
 **Cartão de crédito**
 - Faturas com fecho e vencimento, compras a prestações e pagamento da fatura a partir de uma conta.

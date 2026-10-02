@@ -19,15 +19,12 @@ function fimDoPeriodo(n) {
 let geradoMes = null;
 let mesResumo = null;    // mês do quadro "Resumo de ..." (null = mês atual)
 
-// Recorrências geram os previstos do mês sozinhas (idempotente): lembretes não dependem de apertar botão.
+// Recorrências geram os previstos sozinhas: o mês atual e os 5 seguintes (idempotente; é uma janela que anda, nunca infinita).
 async function gerarRecorrencias() {
   const mes = mesISO();
   if (geradoMes === mes) return;
   geradoMes = mes;
-  try {
-    await POST('/api/recorrencias/gerar', { mes });
-    if (new Date().getDate() >= 22) await POST('/api/recorrencias/gerar', { mes: somarMes(mes, 1) });
-  } catch { geradoMes = null; }
+  try { await POST('/api/recorrencias/gerar', { mes, ate: somarMes(mes, 5) }); } catch { geradoMes = null; }
 }
 
 export async function inicio(raiz, ctx) {

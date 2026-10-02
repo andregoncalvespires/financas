@@ -1,5 +1,6 @@
 import re
 from datetime import date, timedelta
+from typing import Literal
 from uuid import uuid4
 
 import psycopg
@@ -89,7 +90,7 @@ def criar(body: TransacaoIn, cur=Depends(get_db), usuario: Usuario = Depends(usu
 
 
 @router.patch("/transacoes/{tid}")
-def alterar(tid: str, body: TransacaoPatch, cur=Depends(get_db)):
+def alterar(tid: str, body: TransacaoPatch, cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     t = cur.execute("SELECT * FROM transacao WHERE id = %s", (tid,)).fetchone()
     if not t:
         raise HTTPException(404, "lançamento não encontrado")
@@ -136,6 +137,13 @@ def alterar(tid: str, body: TransacaoPatch, cur=Depends(get_db)):
         elif not body.data_caixa:
             campos["data_caixa"] = body.data_competencia
     atualizar(cur, "transacao", tid, campos)
+    if body.propagar and t["recorrencia_id"]:
+        # a mudança vale também para a recorrência e para os previstos dos meses seguintes (este lançamento já foi ajustado acima)
+        proximo = add_months(t["data_competencia"].replace(day=1), 1).strftime("%Y-%m")
+        alterar_recorrencia(str(t["recorrencia_id"]), RecorrenciaPatch(
+            valor_centavos=body.valor_centavos, categoria_id=body.categoria_id, favorecido_id=body.favorecido_id,
+            favorecido_nome=body.favorecido_nome, descricao=body.descricao, forma_pagamento=body.forma_pagamento,
+            dia_mes=body.data_competencia.day if body.data_competencia else None, a_partir_de=proximo), cur, usuario)
     return cur.execute(SQL_TX + " WHERE t.id = %s", (tid,)).fetchone()
 
 
@@ -197,12 +205,21 @@ def desfazer(tid: str, cur=Depends(get_db)):
 
 
 @router.delete("/transacoes/{tid}")
-def excluir(tid: str, todo_parcelamento: bool = False, cur=Depends(get_db)):
+def excluir(tid: str, todo_parcelamento: bool = False, proximos: bool = False, cur=Depends(get_db)):
     t = cur.execute("SELECT id, tipo, transferencia_id, parcelamento_id, recorrencia_id, data_competencia, "
                     "(SELECT cartao_id FROM plastico WHERE id = transacao.plastico_id) AS cartao_id FROM transacao WHERE id = %s", (tid,)).fetchone()
     if not t:
         raise HTTPException(404, "lançamento não encontrado")
-    r = _excluir(tid, todo_parcelamento, cur, t)
+    extra = {}
+    if proximos and t["recorrencia_id"]:
+        # "este e os próximos": a recorrência termina no mês anterior e os previstos daqui em diante saem (confirmados nunca)
+        mes_ini = t["data_competencia"].replace(day=1)
+        novo_fim = mes_ini - timedelta(days=1)
+        cur.execute("UPDATE recorrencia SET fim = LEAST(COALESCE(fim, %s), %s) WHERE id = %s", (novo_fim, novo_fim, t["recorrencia_id"]))
+        extra["proximos_removidos"] = cur.execute(
+            "DELETE FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s AND id <> %s",
+            (t["recorrencia_id"], mes_ini, tid)).rowcount
+    r = {**_excluir(tid, todo_parcelamento, cur, t), **extra}
     if t["cartao_id"]:      # a fatura que ficou sem compras não deve sobrar aberta e zerada
         cur.execute("SELECT limpar_faturas_vazias(%s)", (t["cartao_id"],))
     return r
@@ -243,7 +260,7 @@ def excluir_lote(body: ExclusaoLoteIn, cur=Depends(get_db)):
                     irmas = cur.execute("SELECT id FROM transacao WHERE parcelamento_id = (SELECT parcelamento_id FROM transacao WHERE id = %s)", (tid,)).fetchall()
                     grupo = {str(r["id"]) for r in irmas}
                     ja_saiu.update(grupo)
-                excluidos += excluir(tid, body.todo_parcelamento, cur)["excluidos"]
+                excluidos += excluir(tid, body.todo_parcelamento, False, cur)["excluidos"]
         except HTTPException as e:
             ja_saiu.difference_update(grupo)
             falhas.append({"id": tid, "motivo": e.detail})
@@ -321,8 +338,10 @@ def alterar_recorrencia(rid: str, body: RecorrenciaPatch, cur=Depends(get_db), u
     refeitos = 0
     if nova["ativa"]:
         meses |= {ini}                    # refaz os meses que existiam e o mês de partida
+        meses |= {date.fromisoformat(m + "-01") for m in _meses_entre(ini.strftime("%Y-%m"), _fim_do_horizonte())}   # e completa até o horizonte
         for m in sorted(meses):
-            refeitos += gerar(GerarRecorrenciasIn(mes=m.strftime("%Y-%m")), cur, usuario)["criadas"]
+            refeitos += _gerar_mes(m.strftime("%Y-%m"), cur, usuario)
+    _limpar_faturas_da_recorrencia(cur, r)
     return {**nova, "previstos_removidos": removidos, "previstos_gerados": refeitos}
 
 
@@ -339,21 +358,60 @@ def desfazer_pulo(rid: str, mes: str, cur=Depends(get_db), usuario: Usuario = De
     ini, _ = mes_intervalo(mes)
     if not cur.execute("DELETE FROM recorrencia_pulada WHERE recorrencia_id = %s AND mes = %s RETURNING mes", (rid, ini)).fetchone():
         raise HTTPException(404, "esse mês não estava pulado")
-    gerados = gerar(GerarRecorrenciasIn(mes=mes), cur, usuario)["criadas"]
+    gerados = _gerar_mes(mes, cur, usuario)
     return {"ok": True, "previstos_gerados": gerados}
 
 
 @router.delete("/recorrencias/{rid}")
-def excluir_recorrencia(rid: str, cur=Depends(get_db)):
-    if not cur.execute("DELETE FROM recorrencia WHERE id = %s RETURNING id", (rid,)).fetchone():
+def excluir_recorrencia(rid: str, previstos: Literal["remover", "manter"] = "remover", cur=Depends(get_db)):
+    """Exclui a recorrência. Por padrão remove também os previstos que ela criou; o que já foi confirmado nunca é apagado.
+    Com previstos=manter, os previstos ficam como lançamentos avulsos."""
+    r = cur.execute("SELECT id, plastico_id FROM recorrencia WHERE id = %s", (rid,)).fetchone()
+    if not r:
         raise HTTPException(404, "recorrência não encontrada")
-    return {"ok": True}
+    removidos = 0
+    if previstos == "remover":
+        removidos = cur.execute("DELETE FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto'", (rid,)).rowcount
+    if not cur.execute("DELETE FROM recorrencia WHERE id = %s RETURNING id", (rid,)).fetchone():
+        raise HTTPException(403, "sem permissão para excluir esta recorrência")
+    _limpar_faturas_da_recorrencia(cur, r)
+    return {"ok": True, "previstos_removidos": removidos}
+
+
+HORIZONTE_MESES = 6     # as recorrências têm previstos criados para o mês atual e os 5 seguintes (janela que anda, nunca infinita)
+
+
+def _meses_entre(ini: str, ate: str | None, limite: int = 24) -> list[str]:
+    """Lista AAAA-MM de `ini` até `ate` (inclusive), no máximo `limite` meses."""
+    a, m = int(ini[:4]), int(ini[5:7])
+    fim = (int(ate[:4]), int(ate[5:7])) if ate else (a, m)
+    out = []
+    while (a, m) <= fim and len(out) < limite:
+        out.append(f"{a:04d}-{m:02d}")
+        a, m = (a + 1, 1) if m == 12 else (a, m + 1)
+    return out
+
+
+def _fim_do_horizonte() -> str:
+    h = date.today().replace(day=1)
+    for _ in range(HORIZONTE_MESES - 1):
+        h = add_months(h, 1)
+    return h.strftime("%Y-%m")
+
+
+def _limpar_faturas_da_recorrencia(cur, r):
+    if r["plastico_id"]:
+        cur.execute("SELECT limpar_faturas_vazias((SELECT cartao_id FROM plastico WHERE id = %s))", (r["plastico_id"],))
 
 
 @router.post("/recorrencias/gerar")
 def gerar(body: GerarRecorrenciasIn, cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
-    """Gera, como 'previsto', os lançamentos do mês para cada recorrência ativa (idempotente)."""
-    ini, fim = mes_intervalo(body.mes)
+    """Gera, como 'previsto', os lançamentos de cada recorrência ativa no mês (ou de `mes` até `ate`). Idempotente."""
+    return {"criadas": sum(_gerar_mes(m, cur, usuario) for m in _meses_entre(body.mes, body.ate))}
+
+
+def _gerar_mes(mes: str, cur, usuario) -> int:
+    ini, fim = mes_intervalo(mes)
     recs = cur.execute("SELECT * FROM recorrencia WHERE ativa AND inicio <= %s AND (fim IS NULL OR fim >= %s)", (fim, ini)).fetchall()
     criadas = 0
     for r in recs:
@@ -373,4 +431,4 @@ def gerar(body: GerarRecorrenciasIn, cur=Depends(get_db), usuario: Usuario = Dep
             criadas += 1
         except (psycopg.errors.InsufficientPrivilege, psycopg.errors.UniqueViolation):
             continue
-    return {"criadas": criadas}
+    return criadas

@@ -180,7 +180,7 @@ function linha(t, raiz, ctx, aoMarcar) {
   const transf = t.tipo === 'transferencia';
   const titulo = transf ? `Transferência ${t.contraparte_nome ? (t.valor_centavos < 0 ? 'para ' : 'de ') + t.contraparte_nome : ''}`.trim()
     : (t.favorecido_nome || t.descricao || (t.tipo === 'pagamento_fatura' ? 'Pagamento de fatura' : 'Sem descrição'));
-  const sub = [transf ? t.descricao : t.categoria_nome, onde, t.total_parcelas ? `${t.numero_parcela}/${t.total_parcelas}` : null, t.criado_por !== estado.eu.id ? `por ${t.criado_por_nome}` : null].filter(Boolean).join(' · ');
+  const sub = [transf ? t.descricao : t.categoria_nome, onde, t.total_parcelas ? `${t.numero_parcela}/${t.total_parcelas}` : null, t.recorrencia_id ? '↻ recorrente' : null, t.criado_por !== estado.eu.id ? `por ${t.criado_por_nome}` : null].filter(Boolean).join(' · ');
   if (selecao.ativa) {
     const caixa = h('input', { type: 'checkbox', class: 'sel-caixa', 'aria-label': `Marcar ${titulo}`, onchange: () => { if (caixa.checked) selecao.ids.add(t.id); else selecao.ids.delete(t.id); aoMarcar(); } });
     caixa.checked = selecao.ids.has(t.id);

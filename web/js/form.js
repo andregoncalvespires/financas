@@ -77,6 +77,9 @@ export function formTransacao(opts) {
     h('option', { value: 'parcela' }, 'Cada parcela no seu mês'), h('option', { value: 'compra' }, 'Compra inteira no mês da compra'));
   const previsto = h('input', { type: 'checkbox' });
   previsto.checked = (ini.estado || (ed && ed.estado)) === 'previsto';
+  const propagar = h('input', { type: 'checkbox' });
+  const cPropagar = h('label', { class: 'check' }, propagar, h('span', null, 'Aplicar também aos meses seguintes desta recorrência'));
+  cPropagar.style.display = (ed && ed.recorrencia_id && ed.estado === 'previsto') ? '' : 'none';
   const cPrevisto = h('label', { class: 'check' }, previsto, h('span', null, 'Ainda não aconteceu (previsto)'));
   const avisoCartao = h('p', { class: 'dica', hidden: true }, 'Compra no cartão entra na fatura e só sai do seu saldo quando a fatura for paga.');
   const msg = h('p', { class: 'erro-form', hidden: true });
@@ -141,6 +144,7 @@ export function formTransacao(opts) {
     cCat,
     blocoForma, blocoCaixa, blocoParcelas,
     cPrevisto,
+    cPropagar,
     avisoCartao,
     msg,
     h('div', { class: 'linha-botoes' },
@@ -164,6 +168,7 @@ export function formTransacao(opts) {
     if (ed) {
       const corpo = { valor_centavos: cent, descricao: descricao.value, estado: previsto.checked ? 'previsto' : 'confirmado',
         forma_pagamento: forma.value || undefined, categoria_id: categoria.value || undefined, favorecido_nome: nomeFav || undefined };
+      if (propagar.checked && cPropagar.style.display !== 'none') corpo.propagar = true;
       if (data.value !== ed.data_competencia) corpo.data_competencia = data.value;
       if (!ed.plastico_id && dataCaixa.value && dataCaixa.value !== ed.data_caixa) corpo.data_caixa = dataCaixa.value;
       await PATCH(`/api/transacoes/${ed.id}`, corpo);
@@ -202,7 +207,7 @@ function acao_(fn, botao, msg) {
 }
 
 export async function excluirTransacao(t) {
-  let todo = false;
+  let todo = false, proximos = false;
   if (t.parcelamento_id && t.total_parcelas > 1) {
     const r = await new Promise((res) => folha('Excluir parcela', (corpo, fechar) => {
       corpo.append(h('p', null, `Esta é a parcela ${t.numero_parcela}/${t.total_parcelas} de uma compra parcelada.`),
@@ -213,10 +218,19 @@ export async function excluirTransacao(t) {
     }));
     if (!r) return false;
     todo = r === 'todas';
-  } else if (!(await confirmar(t.transferencia_id ? 'Excluir esta transferência? As duas pontas (origem e destino) serão apagadas.'
-      : t.recorrencia_id ? 'Este lançamento vem de uma recorrência. Excluir só este mês? A recorrência continua valendo nos próximos meses (você pode desfazer em Mais → Lançamentos recorrentes).'
-      : 'Excluir este lançamento?', t.recorrencia_id ? 'Excluir só este mês' : 'Excluir', true))) return false;
-  await DEL(`/api/transacoes/${t.id}${todo ? '?todo_parcelamento=true' : ''}`);
-  aviso(t.recorrencia_id ? 'Mês pulado na recorrência' : 'Lançamento excluído');
+  } else if (t.recorrencia_id && !t.transferencia_id) {
+    const r = await new Promise((res) => folha('Excluir lançamento recorrente', (corpo, fechar) => {
+      corpo.append(h('p', null, 'Este lançamento vem de uma recorrência. O que você quer excluir?'),
+        h('div', { class: 'coluna-botoes' },
+          h('button', { class: 'btn perigo', onclick: () => { fechar(); res('este'); } }, 'Só este mês'),
+          h('button', { class: 'btn perigo', onclick: () => { fechar(); res('proximos'); } }, 'Este e os próximos meses'),
+          h('button', { class: 'btn sec', onclick: () => { fechar(); res(null); } }, 'Cancelar')),
+        h('small', { class: 'dica' }, '"Só este mês" pula o mês e a recorrência continua. "Este e os próximos" encerra a recorrência no mês anterior e remove os previstos daqui em diante; o que já foi confirmado fica.'));
+    }));
+    if (!r) return false;
+    proximos = r === 'proximos';
+  } else if (!(await confirmar(t.transferencia_id ? 'Excluir esta transferência? As duas pontas (origem e destino) serão apagadas.' : 'Excluir este lançamento?', 'Excluir', true))) return false;
+  await DEL(`/api/transacoes/${t.id}${todo ? '?todo_parcelamento=true' : proximos ? '?proximos=true' : ''}`);
+  aviso(t.recorrencia_id ? (proximos ? 'Recorrência encerrada a partir deste mês' : 'Mês pulado na recorrência') : 'Lançamento excluído');
   return true;
 }

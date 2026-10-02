@@ -286,8 +286,8 @@ async function recorrencias(raiz, ctx) {
   const rs = await GET('/api/recorrencias');
   const recarregar = () => recorrencias(raiz, ctx);
   limpar(raiz).append(voltar('Recorrentes'),
-    h('p', { class: 'dica' }, 'Contas fixas (aluguel, escola, assinaturas…). Gere os previstos do mês: eles alimentam o "disponível de verdade".'),
-    h('button', { class: 'btn', onclick: acao(async () => { const r = await POST('/api/recorrencias/gerar', { mes: mesISO() }); aviso(`${r.criadas} previsto(s) gerado(s) para este mês`); }) }, 'Gerar previstos deste mês'),
+    h('p', { class: 'dica' }, 'Contas fixas (aluguel, escola, assinaturas…). O app cria sozinho os previstos do mês atual e dos 5 seguintes: eles alimentam o "disponível de verdade".'),
+    h('button', { class: 'btn', onclick: acao(async () => { const r = await POST('/api/recorrencias/gerar', { mes: mesISO(), ate: somarMes(mesISO(), 5) }); aviso(`${r.criadas} previsto(s) gerado(s)`); }) }, 'Gerar previstos agora'),
     rs.length ? rs.map(r => h('button', { class: 'linha item', onclick: () => editarRecorrencia(r, recarregar) },
       h('div', { class: 'corpo' }, h('b', null, r.favorecido_nome || r.descricao || 'Sem nome', r.ativa ? null : h('small', { class: 'selo aviso' }, 'pausada')),
         h('small', null, `dia ${r.dia_mes} · ${r.conta_nome || r.cartao_nome + ' ·· ' + r.plastico_final}${r.categoria_nome ? ' · ' + r.categoria_nome : ''}${r.fim ? ' · até ' + dataLonga(r.fim) : ''}`)),
@@ -342,13 +342,28 @@ function editarRecorrencia(r, recarregar) {
       r.conta_id ? campo('Forma de pagamento', forma) : null,
       campo('Vale até (opcional)', fim, 'Deixe em branco para continuar todo mês.'),
       puladosBox,
-      campo('Aplicar', quando, 'Os lançamentos previstos desse período são refeitos com os dados novos. O que já foi confirmado não muda, e ajustes manuais feitos em previstos futuros são substituídos.'),
+      campo('Aplicar', quando, 'Os previstos desse período em diante (até 5 meses à frente) são refeitos com os dados novos. O que já foi confirmado não muda, e ajustes manuais feitos em previstos futuros são substituídos.'),
       h('button', { class: 'btn', onclick: enviar(r.ativa ? {} : { ativa: true }, () => 'Recorrência atualizada') }, r.ativa ? 'Salvar' : 'Salvar e reativar'),
       r.ativa ? h('button', { class: 'btn link', onclick: acao(async () => {
         if (!(await confirmar(`Pausar esta recorrência? Os previstos de ${nomeMes(quando.value)} em diante serão removidos e novos não serão gerados até você reativar.`, 'Pausar'))) return;
         const res = await PATCH(`/api/recorrencias/${r.id}`, { ativa: false, a_partir_de: quando.value });
         fechar(); aviso(`Recorrência pausada (${res.previstos_removidos} previsto(s) removido(s))`); recarregar(); }) }, 'Pausar recorrência') : null,
-      h('button', { class: 'btn link perigo', onclick: acao(async () => { if (await confirmar('Excluir esta recorrência? Os previstos já gerados permanecem.', 'Excluir', true)) { await DEL(`/api/recorrencias/${r.id}`); fechar(); recarregar(); } }) }, 'Excluir'));
+      h('button', { class: 'btn link perigo', onclick: () => excluirRecorrencia(r, () => { fechar(); recarregar(); }) }, 'Excluir'));
+  });
+}
+
+// Exclusão da recorrência: o usuário escolhe se os previstos já criados saem junto ou ficam como lançamentos avulsos. O confirmado nunca é apagado.
+function excluirRecorrencia(r, aoTerminar) {
+  folha('Excluir recorrência', (corpo, fechar) => {
+    const ir = (modo) => acao(async () => {
+      const res = await DEL(`/api/recorrencias/${r.id}?previstos=${modo}`);
+      fechar(); aviso(modo === 'remover' ? `Recorrência excluída (${res.previstos_removidos} previsto(s) removido(s))` : 'Recorrência excluída; os previstos ficaram como lançamentos avulsos'); aoTerminar();
+    });
+    corpo.append(h('p', null, 'O que fazer com os lançamentos previstos que esta recorrência já criou para os próximos meses? O que já foi confirmado não é apagado.'),
+      h('div', { class: 'coluna-botoes' },
+        h('button', { class: 'btn perigo', onclick: ir('remover') }, 'Excluir a recorrência e os previstos'),
+        h('button', { class: 'btn sec', onclick: ir('manter') }, 'Excluir só a recorrência (manter os previstos)'),
+        h('button', { class: 'btn sec', onclick: fechar }, 'Cancelar')));
   });
 }
 

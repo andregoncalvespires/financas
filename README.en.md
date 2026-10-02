@@ -63,7 +63,7 @@ If something does not work, see [Common problems](#common-problems).
 - **Planned or confirmed**: plan future payments and receipts, confirm them when they happen, or move a transaction back to planned if you confirmed it by mistake. Card purchases do not have this option: they go on the statement and only leave your balance when the statement is paid (future instalments are planned automatically).
 - **Select several and delete**: in Transactions, the *Select* button lets you tick several rows (or everything in the current filter) and delete them at once, including a whole instalment plan. Whatever cannot be deleted is reported and the rest is deleted.
 - On income, the field that names the other party is shown as **Payer** (on expenses, *Payee*).
-- **Recurring transactions** (rent, salary, subscriptions), instalment purchases, payees with a suggested category and a lean chart of categories that you can edit and merge.
+- **Recurring transactions** (rent, salary, subscriptions): the app automatically creates the planned entries for the current month and the next 5, so they show up in Available and in upcoming events. When you edit or delete you choose the reach: that month only, or it and the following ones (anything already confirmed is never deleted). There are also instalment purchases, payees with a suggested category and a lean chart of categories that you can edit and merge.
 
 **Credit cards**
 - Statements with closing and due dates, instalment purchases, and paying a statement from an account.
