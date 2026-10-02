@@ -115,6 +115,7 @@ export function formTransacao(opts) {
     ver(blocoForma, !transf && !cartao);
     ver(cFav, !transf); ver(cCat, !transf); ver(cDest, !transf);
     ver(cOrigem, transf); ver(cDestinoT, transf);
+    cFav.firstChild.textContent = tipo === 'receita' ? 'Pagador' : 'Favorecido';   // quem paga a você, em vez de quem recebe de você
     cData.firstChild.textContent = transf ? 'Data da transferência' : 'Data da compra / competência';
   }
   function setTipo(t) {

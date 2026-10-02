@@ -338,7 +338,7 @@ function editarRecorrencia(r, recarregar) {
     });
     corpo.append(
       h('p', { class: 'dica' }, `${r.tipo === 'receita' ? 'Receita' : 'Despesa'} em ${r.conta_nome || r.cartao_nome + ' ·· ' + r.plastico_final}. Para trocar a conta ou o cartão, crie outra recorrência.`),
-      campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Favorecido', campoFav.el), campo('Categoria', cat),
+      campo('Valor (R$)', valor), campo('Dia do mês', dia), campo(r.tipo === 'receita' ? 'Pagador' : 'Favorecido', campoFav.el), campo('Categoria', cat),
       r.conta_id ? campo('Forma de pagamento', forma) : null,
       campo('Vale até (opcional)', fim, 'Deixe em branco para continuar todo mês.'),
       puladosBox,
@@ -379,8 +379,10 @@ function novaRecorrencia(recarregar) {
         if (fs.length) cat.append(h('optgroup', { label: g.nome }, fs.map(f => h('option', { value: f.id }, f.nome))));
       }
     };
-    dest.addEventListener('change', montar); tipo.addEventListener('change', montar); montar();
-    corpo.append(campo('Tipo', tipo), campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Primeira cobrança', primeira, 'Se o dia deste mês já chegou e o valor já está no seu saldo, deixe "Próximo mês". Escolha "Este mês" para que ele apareça como pendente agora.'), campo('Favorecido', campoFav.el), campo('Conta ou cartão', dest), campo('Categoria', cat), campo('Forma de pagamento', forma),
+    const cFavRec = campo('Favorecido', campoFav.el);
+    const rotuloFav = () => { cFavRec.firstChild.textContent = tipo.value === 'receita' ? 'Pagador' : 'Favorecido'; };
+    dest.addEventListener('change', montar); tipo.addEventListener('change', () => { montar(); rotuloFav(); }); montar(); rotuloFav();
+    corpo.append(campo('Tipo', tipo), campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Primeira cobrança', primeira, 'Se o dia deste mês já chegou e o valor já está no seu saldo, deixe "Próximo mês". Escolha "Este mês" para que ele apareça como pendente agora.'), cFavRec, campo('Conta ou cartão', dest), campo('Categoria', cat), campo('Forma de pagamento', forma),
       h('button', { class: 'btn', onclick: acao(async () => {
         const v = parseValor(valor.value), d = dests.find(x => x.valor === dest.value);
         if (!(v > 0) || !dia.value || !d) throw new Error('Informe valor, dia e conta/cartão.');
