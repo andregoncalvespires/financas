@@ -43,6 +43,8 @@ If something does not work, see [Common problems](#common-problems).
 
 ## Screenshots
 
+> Prefer a walk-through for people who only use the app? There is a **[user guide in PDF](docs/Guia-do-usuario.pdf)** (in Brazilian Portuguese), with no installation details.
+
 <p align="center">
 <img src="docs/img/01-inicio.png" width="180" alt="Home"> <img src="docs/img/02-proximos-eventos.png" width="180" alt="Upcoming events"> <img src="docs/img/05-lancamentos.png" width="180" alt="Transactions"> <img src="docs/img/06-filtros.png" width="180" alt="Filters"> <img src="docs/img/07-filtro-cartao.png" width="180" alt="Card query"> <img src="docs/img/08-cartoes.png" width="180" alt="Cards and statements">
 </p>
@@ -58,12 +60,18 @@ If something does not work, see [Common problems](#common-problems).
 **Transactions**
 - Expenses, income and **transfers between accounts** (checking to savings, to cash, and so on), which do not distort the month's income and expenses.
 - **Competence date** (the month it belongs to) and **cash date** (when the money moves).
-- **Planned or confirmed**: plan future payments and receipts, confirm them when they happen, or move a transaction back to planned if you confirmed it by mistake.
+- **Planned or confirmed**: plan future payments and receipts, confirm them when they happen, or move a transaction back to planned if you confirmed it by mistake. Card purchases do not have this option: they go on the statement and only leave your balance when the statement is paid (future instalments are planned automatically).
+- **Select several and delete**: in Transactions, the *Select* button lets you tick several rows (or everything in the current filter) and delete them at once, including a whole instalment plan. Whatever cannot be deleted is reported and the rest is deleted.
+- On income, the field that names the other party is shown as **Payer** (on expenses, *Payee*).
 - **Recurring transactions** (rent, salary, subscriptions), instalment purchases, payees with a suggested category and a lean chart of categories that you can edit and merge.
 
 **Credit cards**
 - Statements with closing and due dates, instalment purchases, and paying a statement from an account.
 - **Import the statement PDF** (with or without a password): the app reads the purchases, compares them with what you already entered, shows value differences for you to decide, and only saves after you review. Requires AI reading to be enabled.
+  - New instalment purchases can also create the **following instalments as planned** on the right months' statements, without changing the imported statement's total. On the next statement, the planned instalment that matches becomes confirmed.
+  - The AI suggests a category for each purchase; if many purchases come back as instalments, the review warns you and leaves the future instalments unticked.
+  - The PDF password is used only to open the file and is never stored. Only the card's owner can import.
+- Open statements left with no purchases at all (for example after deleting transactions) are removed automatically.
 - **Additional and virtual cards**: everyone's purchases land on the owner's statement. A family member invited as a cardholder sees only their own spending.
 
 **Planning**
@@ -76,6 +84,7 @@ If something does not work, see [Common problems](#common-problems).
 **Several people, with privacy**
 - Each person sees only their own data. You share **account by account** (or a card) with whoever you want, as viewer, editor or manager, and withdraw access at any time.
 - **New-account notice:** whenever a new account is created, the administrator e-mail (`SMTP_USER` in `docker-compose.yml`) gets a message.
+- **Administration area** (optional): with `ADMIN_EMAIL` filled in, one specific person sees the list of registered people, last access, and how many accounts and cards each one has. See [Optional settings](#optional-settings).
 - **Passwordless** sign-in: a 6-digit code arrives by e-mail and the device is remembered. You can see and revoke connected devices.
 - Isolation between people is enforced by the database itself (PostgreSQL row-level security), not only by the application code.
 
@@ -107,7 +116,7 @@ Entirely optional: without a key everything works, only automatic reading is off
 2. **Enable billing** on the Google project that owns the key. Under Google's terms, content sent with a key that has no billing (the free tier) may be used to improve their products; with billing enabled, it is not. Check the current terms before using real data.
 3. In `docker-compose.yml`, fill in `GEMINI_API_KEY: "your-key"` and run `docker compose up -d`.
 
-**What is sent to Google:** only the receipt's image or PDF and the app's list of categories, so the AI can pick one. Balances, accounts, names and your other transactions are **not** sent. The key stays on the server only.
+**What is sent to Google:** only the receipt's image or PDF (or the card statement, already opened on your server; the password is neither sent nor stored) and the app's list of categories, so the AI can pick one. Balances, accounts, names and your other transactions are **not** sent. The key stays on the server only.
 
 **How it works:** the AI returns a *suggestion*; you check it, fix it if needed and only then save it. `CAPTURAS_POR_DIA` (default 30) limits use per person and controls cost.
 </details>

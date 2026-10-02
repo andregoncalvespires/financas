@@ -43,6 +43,8 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 ## Telas
 
+> Prefere um passo a passo para quem vai só usar o app? Há um **[guia do usuário em PDF](docs/Guia-do-usuario.pdf)**, sem detalhes técnicos de instalação.
+
 <p align="center">
 <img src="docs/img/01-inicio.png" width="180" alt="Início"> <img src="docs/img/02-proximos-eventos.png" width="180" alt="Próximos eventos"> <img src="docs/img/05-lancamentos.png" width="180" alt="Lançamentos"> <img src="docs/img/06-filtros.png" width="180" alt="Filtros"> <img src="docs/img/07-filtro-cartao.png" width="180" alt="Consulta por cartão"> <img src="docs/img/08-cartoes.png" width="180" alt="Cartões e faturas">
 </p>
@@ -58,12 +60,18 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 **Lançamentos**
 - Despesas, receitas e **transferências entre contas** (da corrente para a poupança, para o dinheiro etc.), que não distorcem as receitas e despesas do mês.
 - **Data de competência** (a que mês pertence) e **data de caixa** (quando o dinheiro se move).
-- **Previsto ou efetivado**: planeje pagamentos e recebimentos futuros, confirme quando acontecerem ou volte um lançamento para previsto se confirmou por engano.
+- **Previsto ou efetivado**: planeje pagamentos e recebimentos futuros, confirme quando acontecerem ou volte um lançamento para previsto se confirmou por engano. Compras no cartão não têm essa opção: elas entram na fatura e só saem do saldo quando a fatura é paga (as parcelas futuras ficam previstas automaticamente).
+- **Selecionar vários e excluir**: em Lançamentos, o botão *Selecionar* permite marcar várias linhas (ou todas as do filtro atual) e excluir de uma vez, inclusive o parcelamento inteiro. O que não puder ser excluído é avisado, e o resto é excluído.
+- Nas receitas, o campo que identifica a outra parte aparece como **Pagador** (nas despesas, *Favorecido*).
 - **Recorrências** (aluguel, salário, assinaturas), parcelamentos, favorecidos com categoria sugerida e um plano de categorias enxuto que você edita e pode mesclar.
 
 **Cartão de crédito**
 - Faturas com fechamento e vencimento, compras parceladas e pagamento da fatura a partir de uma conta.
 - **Importar a fatura em PDF** (com ou sem senha): o app lê as compras, compara com o que você já lançou, mostra as diferenças de valor para você decidir e só grava depois da sua conferência. Requer a leitura por IA ativada.
+  - Compras parceladas novas podem criar também as **parcelas seguintes como previstas** nas faturas dos meses certos, sem mudar o total da fatura importada. Na fatura seguinte, a parcela prevista que casar vira confirmada.
+  - A IA sugere a categoria de cada compra; se muitas compras vierem como parceladas, a conferência avisa e deixa as parcelas futuras desmarcadas.
+  - A senha do PDF é usada só para abri-lo e não é guardada. Quem importa é o dono do cartão.
+- Faturas que ficam sem nenhuma compra (por exemplo, depois de excluir lançamentos) e ainda abertas são removidas automaticamente.
 - **Cartões adicionais** e virtuais: as compras de todos caem na fatura do titular. Um familiar convidado como portador vê só os próprios gastos.
 
 **Planejamento**
@@ -76,6 +84,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 **Várias pessoas, com privacidade**
 - Cada pessoa vê apenas os próprios dados. Você compartilha **conta por conta** (ou um cartão) com quem quiser, como leitor, editor ou gestor, e retira o acesso quando quiser.
 - **Aviso de novos cadastros:** a cada conta nova, o e-mail do administrador (o `SMTP_USER` do `docker-compose.yml`) recebe um aviso.
+- **Área de administração** (opcional): com `ADMIN_EMAIL` preenchido, uma pessoa específica vê a lista de cadastrados, o último acesso e quantas contas e cartões cada um tem. Veja [Configurações opcionais](#configurações-opcionais).
 - Entrada **sem senha**: um código de 6 dígitos chega por e-mail e o aparelho fica lembrado. Você vê e revoga os aparelhos conectados.
 - O isolamento entre pessoas é garantido pelo próprio banco de dados (segurança por linha do PostgreSQL), não só pelo código do aplicativo.
 
@@ -107,7 +116,7 @@ Totalmente opcional: sem chave tudo funciona, só a leitura automática fica des
 2. **Ative o faturamento** no projeto Google dessa chave. Pelos termos da Google, o conteúdo enviado por uma chave sem faturamento (nível gratuito) pode ser usado para melhorar os produtos deles; com faturamento ativo, não. Confira os termos atuais antes de usar com dados reais.
 3. No `docker-compose.yml`, preencha `GEMINI_API_KEY: "sua-chave"` e rode `docker compose up -d`.
 
-**O que é enviado ao Google:** apenas a imagem ou o PDF do comprovante e a lista de categorias do app, para a IA escolher uma. Saldos, contas, nomes e demais lançamentos **não** são enviados. A chave fica só no servidor.
+**O que é enviado ao Google:** apenas a imagem ou o PDF do comprovante (ou da fatura do cartão, já aberto no seu servidor; a senha não é enviada nem guardada) e a lista de categorias do app, para a IA escolher uma. Saldos, contas, nomes e demais lançamentos **não** são enviados. A chave fica só no servidor.
 
 **Como funciona:** a IA devolve uma *sugestão*; você confere, corrige se precisar e só então salva. `CAPTURAS_POR_DIA` (padrão 30) limita o uso por pessoa e controla o custo.
 </details>
