@@ -11,7 +11,7 @@ const GRUPOS = {
 };
 // Período do quadro e dos próximos eventos: meses fechados (1 = só este mês, 2 = este e o próximo...). Lembrado neste aparelho.
 const OPCOES_MESES = [[1, 'Só este mês'], [2, 'Este mês e o próximo'], [3, 'Este mês e os 2 seguintes'], [6, 'Este mês e os 5 seguintes']];
-let meses = (() => { try { const v = +localStorage.getItem('fin-meses-resumo'); return OPCOES_MESES.some(o => o[0] === v) ? v : 2; } catch { return 2; } })();
+let meses = (() => { try { const v = +localStorage.getItem('fin-meses-resumo'); return OPCOES_MESES.some(o => o[0] === v) ? v : 1; } catch { return 1; } })();
 function fimDoPeriodo(n) {
   const d = new Date(new Date().getFullYear(), new Date().getMonth() + n, 0);   // último dia do mês final
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

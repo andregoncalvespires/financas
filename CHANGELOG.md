@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.16.1 — 2026-10-02
+- **Início: padrão é o mês atual.** Quando o aparelho ainda não tem um período guardado, o quadro de posição e os Próximos eventos mostram **só este mês** (antes era este e o próximo). Quem já escolheu outro período continua com a sua escolha.
+
 ## 1.16.0 — 2026-10-02
 - **Recorrências aparecem nos meses seguintes.** O app agora cria sozinho os lançamentos **previstos** de cada recorrência para o mês atual e os 5 seguintes (uma janela que anda, nunca infinita). Com isso eles entram no Disponível, nos Próximos eventos, nas faturas de cartão e no orçamento dos períodos de 2, 3 e 6 meses. Na lista de Lançamentos eles ganham a marca "↻ recorrente".
 - **Edição e exclusão com alcance à sua escolha.** Ao excluir um lançamento recorrente: **só este mês** (pula o mês) ou **este e os próximos** (a recorrência termina no mês anterior e os previstos dali em diante saem). Ao editar um lançamento previsto de recorrência, a opção **Aplicar também aos meses seguintes** muda a recorrência e refaz os previstos seguintes. Ao excluir a recorrência, você escolhe entre remover também os previstos ou **mantê-los como lançamentos avulsos**. O que já foi confirmado nunca é apagado. Editar ou pausar uma recorrência passa a completar os previstos até o horizonte.
