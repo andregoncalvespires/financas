@@ -46,6 +46,17 @@ def lembretes(dias: int = Query(7, ge=0, le=90), ate: date | None = Query(None),
                WHERE f.status <> 'paga' AND f.data_vencimento <= %s
                GROUP BY f.id, k.id HAVING SUM(t.valor_centavos) <> 0 ORDER BY f.data_vencimento""", (ate,)).fetchall():
         itens.append({"tipo": "fatura", "fechada": r["data_fechamento"] < hoje, **r})
+    # vencimento de investimento (só para o dono): aparece a `alerta_dias` do vencimento ou dentro do período; vencido com saldo continua até resolver
+    for r in cur.execute(
+            """SELECT * FROM (SELECT c.id AS conta_id, c.nome AS conta_nome, i.data_vencimento AS data,
+                      (c.saldo_inicial_centavos + COALESCE((SELECT SUM(t.valor_centavos) FROM transacao t WHERE t.conta_id = c.id
+                         AND t.estado IN ('confirmado','conciliado') AND t.data_caixa >= c.data_saldo_inicial), 0))::bigint AS valor_centavos,
+                      i.alerta_dias
+               FROM investimento i JOIN conta c ON c.id = i.conta_id
+               WHERE c.dono_id = app_uid() AND NOT c.inativa AND i.data_vencimento IS NOT NULL
+                 AND i.data_vencimento <= GREATEST(%s::date, %s::date + i.alerta_dias::int)) x
+               WHERE x.data >= %s OR x.valor_centavos > 0""", (ate, hoje, hoje)).fetchall():
+        itens.append({"tipo": "vencimento", "id": r["conta_id"], **r})
     for i in itens:
         i["atrasado"] = i["data"] < hoje
     # a próxima fatura em aberto de cada cartão que vence depois do período também é mostrada (fora dos totais)
@@ -58,7 +69,7 @@ def lembretes(dias: int = Query(7, ge=0, le=90), ate: date | None = Query(None),
         if r["valor_centavos"]:
             itens.append({"tipo": "fatura", "fechada": r["data_fechamento"] < hoje, "atrasado": False, "alem_periodo": True, **r})
     itens.sort(key=lambda i: (i["data"], i["tipo"]))
-    dentro = [i for i in itens if not i.get("alem_periodo") and i["tipo"] != "transferencia"]
+    dentro = [i for i in itens if not i.get("alem_periodo") and i["tipo"] not in ("transferencia", "vencimento")]
     saidas = sum(i["valor_centavos"] for i in dentro if i["valor_centavos"] < 0)
     entradas = sum(i["valor_centavos"] for i in dentro if i["valor_centavos"] > 0)
     return {"hoje": hoje, "ate": ate, "itens": itens, "saidas": saidas, "entradas": entradas,

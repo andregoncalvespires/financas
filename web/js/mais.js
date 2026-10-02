@@ -1,4 +1,4 @@
-import { h, GET, POST, PATCH, PUT_, DEL, brl, folha, aviso, acao, campo, campoFavorecido, limpar, vazio, parseValor, centavosParaCampo, hojeISO, mesISO, somarMes, nomeMes, dataLonga, PAPEIS, FORMAS, confirmar, api } from './util.js';
+import { h, GET, POST, PATCH, PUT_, DEL, brl, folha, aviso, acao, campo, campoFavorecido, limpar, vazio, parseValor, centavosParaCampo, hojeISO, mesISO, somarMes, nomeMes, dataLonga, dataCurta, PAPEIS, FORMAS, confirmar, api } from './util.js';
 import { estado, carregarCadastros, destinos } from './form.js';
 import { VERSAO_APP } from './versao.js';
 
@@ -8,15 +8,18 @@ function h_voltar(titulo) {
 }
 
 export async function mais(raiz, ctx, sub) {
-  const telas = { contas, tiposConta, convites, categorias, recorrencias, dispositivos, perfil, sobre, excluirConta, administracao };
+  const telas = { contas, tiposConta, convites, categorias, recorrencias, dispositivos, perfil, sobre, excluirConta, administracao, investimentos, premissas };
   if (sub && telas[sub]) return telas[sub](raiz, ctx);
   let n = 0;
   try { const c = await GET('/api/convites'); n = c.recebidos.length; } catch { /* ignora */ }
+  try { await carregarCadastros(); } catch { /* usa o que já tem */ }
+  const temInvest = (estado.contas || []).some(c => c.tipo === 'investimento' && !c.inativa);
   const item = (href, rotulo, extra) => h('a', { class: 'linha item', href }, h('div', { class: 'corpo' }, h('b', null, rotulo)), extra || h('span', null, '›'));
   limpar(raiz).append(h('h1', null, 'Mais'),
     h('div', { class: 'lista' },
       item('#/mais/convites', 'Convites', n ? h('span', { class: 'selo aviso' }, `${n} novo(s)`) : null),
       item('#/mais/contas', 'Contas e compartilhamento'),
+      temInvest ? item('#/mais/investimentos', 'Investimentos') : null,
       item('#/mais/tiposConta', 'Tipos de conta'),
       item('#/orcamento', 'Orçamento'),
       item('#/mais/categorias', 'Categorias'),
@@ -42,7 +45,7 @@ async function contas(raiz, ctx) {
 }
 
 const CLASSES = [['corrente', 'Conta corrente (entra no disponível)'], ['dinheiro', 'Dinheiro (entra no disponível)'], ['terceiros', 'Terceiros (entra no disponível)'],
-  ['poupanca', 'Poupança (reserva)'], ['investimento', 'Investimento (reserva)'], ['beneficio', 'Benefício: ticket/vale (saldo à parte)']];
+  ['investimento', 'Investimento (reserva)'], ['beneficio', 'Benefício: ticket/vale (saldo à parte)']];
 
 function camposRecarga(c) {
   const valor = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0,00', value: c && c.recarga_valor_centavos ? centavosParaCampo(c.recarga_valor_centavos) : '' });
@@ -59,9 +62,17 @@ function novaConta(recarregar) {
     const data = h('input', { type: 'date', value: hojeISO() });
     const rec = camposRecarga(null);
     const blocoRec = h('div', null, rec.vista);
-    const atualizarRec = () => { const t = tipos.find(x => x.id === tipo.value); blocoRec.style.display = (t && t.classe === 'beneficio') ? '' : 'none'; };
+    let inv = null;                                 // campos de investimento, criados quando o tipo escolhido é de investimento
+    const blocoInv = h('div');
+    const atualizarRec = async () => {
+      const t = tipos.find(x => x.id === tipo.value);
+      blocoRec.style.display = (t && t.classe === 'beneficio') ? '' : 'none';
+      const ehInv = !!t && t.classe === 'investimento';
+      if (ehInv && !inv) { inv = await camposInvestimento(null); blocoInv.append(h('h3', null, 'Investimento'), ...inv.vista); }
+      blocoInv.style.display = ehInv ? '' : 'none';
+    };
     tipo.addEventListener('change', atualizarRec); atualizarRec();
-    corpo.append(campo('Nome', nome), campo('Tipo', tipo, 'Crie outros tipos em Mais › Tipos de conta.'), campo('Saldo inicial (R$)', saldo, 'Saldo real na data abaixo; os lançamentos somam a partir dela.'), campo('Data do saldo inicial', data), blocoRec,
+    corpo.append(campo('Nome', nome), campo('Tipo', tipo, 'Crie outros tipos em Mais › Tipos de conta.'), campo('Saldo inicial (R$)', saldo, 'Saldo real na data abaixo; os lançamentos somam a partir dela.'), campo('Data do saldo inicial', data), blocoRec, blocoInv,
       h('button', { class: 'btn', onclick: acao(async () => {
         if (!nome.value.trim()) throw new Error('Informe o nome.');
         const v = saldo.value.trim() ? parseValor(saldo.value.replace('-', '')) * (saldo.value.trim().startsWith('-') ? -1 : 1) : 0;
@@ -72,7 +83,10 @@ function novaConta(recarregar) {
           if (Number.isNaN(rv) || rv <= 0 || !(+rec.dia.value >= 1 && +rec.dia.value <= 31)) throw new Error('Confira o valor e o dia da recarga.');
           b.recarga_valor_centavos = rv; b.recarga_dia = +rec.dia.value;
         }
-        await POST('/api/contas', b);
+        const tSel = tipos.find(x => x.id === tipo.value);
+        const cfgInv = tSel && tSel.classe === 'investimento' && inv ? inv.ler() : null;      // valida antes de criar a conta
+        const nova = await POST('/api/contas', b);
+        if (cfgInv) await PUT_(`/api/contas/${nova.id}/investimento`, cfgInv);
         fechar(); aviso('Conta criada'); recarregar();
       }) }, 'Criar conta'));
   });
@@ -152,6 +166,16 @@ async function detalheConta(c, recarregar) {
           fechar(); aviso('Recarga atualizada'); await carregarCadastros(); recarregar();
         }) }, 'Salvar recarga'),
         h('p', { class: 'dica' }, 'Alterar o valor ou o dia atualiza as entradas previstas do mês em diante. O que já foi confirmado não muda; para um mês específico diferente, edite aquele lançamento. Desativar remove os previstos futuros.'));
+    }
+    if (dono && c.tipo === 'investimento') {
+      let cfg = null;
+      try { cfg = ((await GET('/api/investimentos')).investimentos.find(x => x.id === c.id && x.configurado)) || null; } catch { /* abre vazio */ }
+      const campos = await camposInvestimento(cfg);
+      corpo.append(h('h3', null, 'Investimento'), ...campos.vista,
+        h('button', { class: 'btn', onclick: acao(async () => {
+          await PUT_(`/api/contas/${c.id}/investimento`, campos.ler());
+          fechar(); aviso('Investimento salvo'); await carregarCadastros(); recarregar();
+        }) }, 'Salvar investimento'));
     }
     if (dono) {
       const nome = h('input', { type: 'text', value: c.nome });
@@ -429,6 +453,127 @@ async function perfil(raiz, ctx) {
     h('h2', null, 'Seus dados'),
     h('a', { class: 'btn sec', href: '/api/exportar/completo', download: '' }, 'Exportar tudo (planilha + comprovantes)'),
     h('a', { class: 'btn link perigo', href: '#/mais/excluirConta' }, 'Excluir minha conta e todos os meus dados'));
+}
+
+// ---------- investimentos ----------
+const IDX_ROTULO = { prefixado: 'Prefixado (% ao ano)', cdi: '% do CDI', selic: 'Selic + taxa', ipca: 'IPCA + taxa', poupanca: 'Poupança', manual: 'Valor informado por mim' };
+const ROTULO_TAXA = { prefixado: 'Taxa (% ao ano)', cdi: 'Percentual do CDI (ex.: 100)', selic: 'Taxa acima da Selic (% ao ano; Tesouro Selic costuma ser 0)', ipca: 'Taxa acima do IPCA (% ao ano)' };
+const pct = (n) => String(n).replace('.', ',');
+const lerPct = (t) => { const v = parseFloat(String(t).trim().replace(',', '.')); return Number.isNaN(v) ? null : v; };
+let subtiposCache = null;
+
+// Campos de um investimento. `inv` = configuração atual (ou null). Devolve { vista, ler() } (ler lança erro se algo estiver incompleto).
+async function camposInvestimento(inv) {
+  subtiposCache = subtiposCache || await GET('/api/subtipos-investimento');
+  const sub = h('select', null, subtiposCache.map(s => h('option', { value: s.chave }, s.rotulo)));
+  sub.value = inv ? inv.subtipo : 'cdb';
+  const idx = h('select', null, Object.entries(IDX_ROTULO).filter(([k]) => !['poupanca', 'manual'].includes(k)).map(([k, r]) => h('option', { value: k }, r)));
+  idx.value = inv && !['poupanca', 'manual'].includes(inv.indexador) ? inv.indexador : 'cdi';
+  const taxa = h('input', { type: 'text', inputmode: 'decimal', value: inv && inv.taxa != null ? pct(Number(inv.taxa)) : '', placeholder: 'Ex.: 100' });
+  const aplic = h('input', { type: 'date', value: inv && inv.data_aplicacao ? String(inv.data_aplicacao).slice(0, 10) : '' });
+  const aniv = h('input', { type: 'number', min: 1, max: 31, inputmode: 'numeric', value: inv && inv.dia_aniversario ? inv.dia_aniversario : '', placeholder: 'Ex.: 10' });
+  const venc = h('input', { type: 'date', value: inv && inv.data_vencimento ? String(inv.data_vencimento).slice(0, 10) : '' });
+  const isento = h('input', { type: 'checkbox', checked: inv ? !!inv.isento_ir : false });
+  const alerta = h('input', { type: 'number', min: 0, max: 365, inputmode: 'numeric', value: inv ? inv.alerta_dias : 30 });
+  const cIdx = campo('Como rende', idx), cTaxa = campo(ROTULO_TAXA.cdi, taxa), cAplic = campo('Data da aplicação', aplic), cAniv = campo('Dia de aniversário', aniv, 'Dia do mês em que o saldo é atualizado (o app cria o rendimento previsto nesse dia).');
+  const cVenc = campo('Vencimento (opcional)', venc, 'Se informado, o app avisa na tela e por e-mail antes de vencer.');
+  const cIsento = h('label', { class: 'check' }, isento, h('span', null, 'Isento de imposto de renda'));
+  const cAlerta = campo('Avisar quantos dias antes do vencimento', alerta);
+  const atual = () => subtiposCache.find(x => x.chave === sub.value);
+  const redesenhar = (trocou) => {
+    const s = atual();
+    const manual = s.manual, poup = sub.value === 'poupanca';
+    if (trocou) { idx.value = s.indexador === 'manual' || s.indexador === 'poupanca' ? 'cdi' : s.indexador; isento.checked = s.isento_ir; }
+    cIdx.style.display = manual || poup ? 'none' : '';
+    cTaxa.style.display = manual || poup ? 'none' : '';
+    cAniv.style.display = manual ? 'none' : '';
+    cAplic.style.display = manual ? 'none' : '';
+    cIsento.style.display = manual ? 'none' : '';
+    cTaxa.firstChild.textContent = ROTULO_TAXA[idx.value] || 'Taxa';
+  };
+  sub.addEventListener('change', () => redesenhar(true));
+  idx.addEventListener('change', () => redesenhar(false));
+  redesenhar(false);
+  return {
+    vista: [campo('Tipo de investimento', sub), cIdx, cTaxa, cAplic, cAniv, cVenc, cIsento, cAlerta,
+      h('p', { class: 'dica' }, 'Tudo aqui é estimativa para ajudar no planejamento: confira com o extrato do banco e confirme o rendimento real quando ele cair. Não é recomendação de investimento.')],
+    ler() {
+      const s = atual();
+      const b = { subtipo: sub.value, alerta_dias: Math.max(0, Math.min(365, +alerta.value || 0)), data_vencimento: venc.value || null };
+      if (!s.manual) {
+        const poup = sub.value === 'poupanca';
+        if (!poup) {
+          b.indexador = idx.value;
+          b.taxa = lerPct(taxa.value);
+          if (b.taxa === null) throw new Error('Informe a taxa do investimento.');
+        }
+        b.data_aplicacao = aplic.value || null;
+        b.dia_aniversario = +aniv.value || (aplic.value ? +aplic.value.slice(8, 10) : null);
+        if (!b.dia_aniversario) throw new Error('Informe o dia de aniversário (ou a data da aplicação).');
+        b.isento_ir = isento.checked;
+      }
+      return b;
+    },
+  };
+}
+
+async function investimentos(raiz, ctx) {
+  await carregarCadastros();
+  const r = await GET('/api/investimentos');
+  const recarregar = () => investimentos(raiz, ctx);
+  const hoje = hojeISO();
+  limpar(raiz).append(voltar('Investimentos'),
+    h('p', { class: 'dica' }, 'Estimativas para planejamento. O rendimento previsto aparece nos Próximos eventos; confirme com o valor real do extrato quando ele cair.'),
+    h('a', { class: 'linha item', href: '#/mais/premissas' }, h('div', { class: 'corpo' }, h('b', null, 'Premissas'),
+      h('small', { class: 'bloco' }, `CDI ${pct(r.premissas.cdi)}% · Selic ${pct(r.premissas.selic)}% · IPCA ${pct(r.premissas.ipca)}% ao ano`)), h('span', null, '›')),
+    r.investimentos.length ? r.investimentos.map(i => {
+      const conta = estado.contas.find(c => c.id === i.id);
+      const dono = i.dono_id === estado.eu.id;
+      const linhas = [];
+      if (!i.configurado) linhas.push(h('small', { class: 'selo aviso' }, 'configure o investimento'));
+      else if (i.manual) linhas.push(h('small', { class: 'bloco' }, `${i.rotulo} · valor informado por você`));
+      else {
+        linhas.push(h('small', { class: 'bloco' }, `${i.rotulo} · ${IDX_ROTULO[i.indexador]}${i.taxa != null && i.indexador !== 'poupanca' ? ' ' + pct(Number(i.taxa)) : ''}${i.isento_ir ? ' · isento de IR' : ` · IR ${pct(Math.round(i.aliquota_ir * 1000) / 10)}%`}`));
+        if (i.rendimento_proximo) linhas.push(h('small', { class: 'bloco' }, `Próximo rendimento (${dataCurta(i.rendimento_proximo_data)}): ${brl(i.rendimento_proximo)} bruto${i.rendimento_proximo_liquido != null && !i.isento_ir ? ` · ${brl(i.rendimento_proximo_liquido)} líquido estimado` : ''}`));
+      }
+      if (i.data_vencimento) linhas.push(h('small', { class: 'bloco ' + (i.dias_para_vencimento != null && i.dias_para_vencimento <= i.alerta_dias ? 'neg' : '') },
+        `Vence em ${dataLonga(i.data_vencimento)}${i.dias_para_vencimento != null ? (i.dias_para_vencimento < 0 ? ' (vencido)' : ` (${i.dias_para_vencimento} dia(s))`) : ''}`));
+      return h('section', { class: 'cartao' },
+        h('div', { class: 'linha-controles' }, h('b', null, i.nome), h('b', null, brl(i.saldo_atual))),
+        ...linhas,
+        dono ? h('div', { class: 'linha-botoes' },
+          i.manual ? h('button', { class: 'btn sec', onclick: () => atualizarValor(i, recarregar) }, 'Atualizar valor') : null,
+          h('button', { class: 'btn sec', onclick: () => conta && detalheConta(conta, recarregar) }, 'Configurar')) : null);
+    }) : vazio('Nenhuma conta de investimento. Crie uma em Mais › Contas, escolhendo o tipo Investimento.'));
+}
+
+function atualizarValor(i, recarregar) {
+  folha(`Atualizar valor de ${i.nome}`, (corpo, fechar) => {
+    const valor = h('input', { type: 'text', inputmode: 'decimal', class: 'valor-grande', value: centavosParaCampo(i.saldo_atual) });
+    corpo.append(h('p', { class: 'dica' }, 'Informe quanto vale o investimento hoje. O app lança a diferença como ganho ou perda para o saldo ficar igual.'),
+      campo('Valor atual (R$)', valor),
+      h('button', { class: 'btn', onclick: acao(async () => {
+        const v = parseValor(valor.value);
+        if (Number.isNaN(v) || v < 0) throw new Error('Valor inválido.');
+        const r = await POST(`/api/contas/${i.id}/atualizar-valor`, { valor_centavos: v });
+        fechar(); aviso(r.diferenca_centavos ? `Valor atualizado (${brl(r.diferenca_centavos)})` : 'Sem diferença'); recarregar();
+      }) }, 'Salvar'));
+  });
+}
+
+async function premissas(raiz, ctx) {
+  const p = await GET('/api/premissas');
+  const campoPct = (v) => h('input', { type: 'text', inputmode: 'decimal', value: pct(v) });
+  const selic = campoPct(p.selic), cdi = campoPct(p.cdi), ipca = campoPct(p.ipca), tr = campoPct(p.tr);
+  limpar(raiz).append(voltar('Premissas'),
+    p.personalizadas ? null : h('p', { class: 'selo aviso' }, 'Valores iniciais de exemplo: ajuste para o que você espera'),
+    h('p', { class: 'dica' }, 'Taxas anuais esperadas, usadas para estimar o rendimento dos próximos meses. Não são lidas de nenhum site: você as define e atualiza quando quiser. Ao salvar, os rendimentos previstos são recalculados.'),
+    campo('Selic (% ao ano)', selic), campo('CDI (% ao ano)', cdi), campo('IPCA (% ao ano)', ipca), campo('TR (% ao ano)', tr, 'Usada só na poupança.'),
+    h('button', { class: 'btn', onclick: acao(async () => {
+      const b = { selic: lerPct(selic.value), cdi: lerPct(cdi.value), ipca: lerPct(ipca.value), tr: lerPct(tr.value) };
+      if (Object.values(b).some(v => v === null)) throw new Error('Confira os valores.');
+      await PUT_('/api/premissas', b); aviso('Premissas salvas'); premissas(raiz, ctx);
+    }) }, 'Salvar'));
 }
 
 // ---------- administração (só quem é o ADMIN_EMAIL) ----------

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.17.0 — 2026-10-03
+- **Contas de investimento com subtipo, rendimento e vencimento.** A **poupança deixou de ser um tipo de conta**: ela agora é um subtipo de **Investimento** (contas de poupança que você já tinha foram convertidas, sem mudar saldo nem lançamentos). Cada investimento tem subtipo (poupança, Tesouro Selic, Prefixado e IPCA+, CDB, LCI, LCA, LC, LA, debêntures, CRI/CRA, fundo de renda fixa, previdência, renda variável, outro), forma de rendimento (prefixado, % do CDI, Selic + taxa, IPCA + taxa ou poupança), data da aplicação, **dia de aniversário** e **data de vencimento** opcional.
+- **Rendimento previsto.** O app estima o rendimento dos próximos 6 meses e cria lançamentos **previstos** de receita no dia de aniversário (usando o saldo e os aportes/resgates previstos). Confirme com o valor real do extrato e as estimativas seguintes se refazem. O último período termina no vencimento. Em **Mais › Investimentos** aparecem o saldo, o próximo rendimento bruto e o **líquido estimado** (IR regressivo da renda fixa, 22,5% a 15%; poupança, LCI, LCA e debêntures incentivadas isentas por padrão, editável).
+- **Premissas manuais.** Selic, CDI, IPCA e TR esperados são definidos por você em Mais › Investimentos › Premissas (os valores iniciais são exemplos). O app não busca nada na internet.
+- **Renda variável e previdência** entram como valor informado por você: o botão **Atualizar valor** lança a diferença como ganho ou perda.
+- **Alerta de vencimento.** O vencimento aparece nos Próximos eventos (só para o dono) e o dono recebe **um e-mail** quando faltam até N dias (padrão 30, configurável por investimento). Tudo é estimativa para planejamento, não recomendação de investimento.
+
 ## 1.16.1 — 2026-10-02
 - **Início: padrão é o mês atual.** Quando o aparelho ainda não tem um período guardado, o quadro de posição e os Próximos eventos mostram **só este mês** (antes era este e o próximo). Quem já escolheu outro período continua com a sua escolha.
 

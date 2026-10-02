@@ -218,3 +218,5 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .barra-selecao { z-index: 20; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--borda); }
 .barra-selecao .btn { width: auto; }
 .barra-selecao .btn.perigo { background: var(--neg); color: #fff; }
+
+.bloco { display: block; }

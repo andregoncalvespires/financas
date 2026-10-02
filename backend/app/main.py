@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -7,24 +8,37 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import exigir_configuracao, settings
+from .config import exigir_configuracao, modo_teste, settings
 from .db import abrir_pool, fechar_pool, sessao
-from .routers import admin, auth, capturas, faturas_import, cadastros, cartoes, conta_usuario, contas, exportar, lembretes, orcamento, resumo, transacoes
+from .routers import admin, auth, investimentos, capturas, faturas_import, cadastros, cartoes, conta_usuario, contas, exportar, lembretes, orcamento, resumo, transacoes
 
 logging.basicConfig(level=logging.INFO)
+
+
+async def _rotina_avisos():
+    """A cada 6 horas avisa por e-mail os donos de investimentos perto do vencimento (um aviso por vencimento)."""
+    while True:
+        try:
+            await asyncio.to_thread(investimentos.avisar_vencimentos)
+        except Exception:
+            logging.getLogger("uvicorn.error").exception("rotina de avisos de vencimento falhou")
+        await asyncio.sleep(6 * 3600)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     exigir_configuracao()
     abrir_pool()
+    tarefa = None if modo_teste() else asyncio.create_task(_rotina_avisos())
     yield
+    if tarefa:
+        tarefa.cancel()
     fechar_pool()
 
 
 app = FastAPI(title="Finanças", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
-for r in (admin, auth, cadastros, contas, cartoes, faturas_import, transacoes, resumo, capturas, orcamento, lembretes, exportar, conta_usuario):
+for r in (admin, auth, investimentos, cadastros, contas, cartoes, faturas_import, transacoes, resumo, capturas, orcamento, lembretes, exportar, conta_usuario):
     app.include_router(r.router)
 
 

@@ -54,8 +54,14 @@ If something does not work, see [Common problems](#common-problems).
 ## What it does
 
 **Accounts and balances**
-- Checking accounts, savings, investments, cash, third-party accounts and **benefit cards** (meal or food vouchers) with an automatic **monthly top-up** you can adjust or turn off. You create your own **account types**.
+- Checking accounts, investments, cash, third-party accounts and **benefit cards** (meal or food vouchers) with an automatic **monthly top-up** you can adjust or turn off. You create your own **account types**.
 - **Calculated available balance**: current balance minus what is planned to go out (bills, credit card statements and planned transfers) over the months you choose (this month only, this and next, 3 or 6 months, always up to the end of a month); the choice is remembered on the device.
+
+**Investments**
+- Investment accounts with a **subtype** (savings, Tesouro Selic, Prefixado and IPCA+, CDB, LCI, LCA, LC, LA, debentures, CRI/CRA, fixed-income funds, pension plans and variable income), yield rate, **anniversary day** and **maturity date**.
+- The app **estimates the yield** for the coming months (it creates planned income entries on the anniversary day); when the statement arrives you confirm the real value and the following estimates are redone. The screen shows gross and **estimated net** yield (regressive income tax on fixed income; savings, LCI and LCA are exempt).
+- **Assumptions** (Selic, CDI, IPCA, TR) are set by you in More › Investments; nothing is fetched from the internet. Variable income and pension plans are entered as a **value you inform**.
+- **Maturity alert** in upcoming events and an **e-mail to the account owner** before it matures (lead time is configurable). Everything is an estimate for planning, not investment advice.
 
 **Transactions**
 - Expenses, income and **transfers between accounts** (checking to savings, to cash, and so on), which do not distort the month's income and expenses.
@@ -191,7 +197,7 @@ docker compose up -d
 
 ## Privacy and security
 
-- Your data stays on your server. The only data that leaves it is what you choose to send: the code and invitation e-mails (through your SMTP provider) and, if you turn on AI reading, the receipt image (to Google).
+- Your data stays on your server. The only data that leaves it is what you choose to send: the code, invitation and investment-maturity notice e-mails (through your SMTP provider) and, if you turn on AI reading, the receipt image (to Google).
 - Each person only sees what is theirs or what has been shared with them, and the database enforces this.
 - Secrets (database passwords and the key that protects the codes) are generated automatically and kept in a dedicated Docker volume.
 - To report a security issue, see [SECURITY.md](SECURITY.md).

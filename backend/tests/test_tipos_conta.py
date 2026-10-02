@@ -13,7 +13,7 @@ def tipo_ticket(p, nome="Ticket refeição"):
 def test_tipos_padrao_e_crud(nova_pessoa):
     a, b = nova_pessoa("a"), nova_pessoa("b")
     padrao = {t["nome"] for t in a.get("/api/tipos-conta").json()}
-    assert {"Conta corrente", "Poupança", "Ticket / Vale"} <= padrao
+    assert {"Conta corrente", "Investimento", "Ticket / Vale"} <= padrao and "Poupança" not in padrao
     t = tipo_ticket(a)
     assert a.post("/api/tipos-conta", json={"nome": "ticket refeicao", "classe": "corrente"}).status_code == 409
     assert b.patch(f"/api/tipos-conta/{t['id']}", json={"nome": "x"}).status_code == 404       # isolado por usuário
@@ -77,4 +77,4 @@ def test_recarga_so_em_beneficio_e_permissao(nova_pessoa):
     vr = a.post("/api/contas", json={"nome": "VR", "tipo_conta_id": t["id"]}).json()
     assert b.put(f"/api/contas/{vr['id']}/recarga", json={"valor_centavos": 100, "dia_mes": 5}).status_code == 404
     # compatibilidade: criação só com 'tipo'
-    assert a.post("/api/contas", json={"nome": "Poup", "tipo": "poupanca"}).json()["tipo_nome"] == "Poupança"
+    assert a.post("/api/contas", json={"nome": "Poup", "tipo": "poupanca"}).json()["tipo_nome"] == "Investimento"

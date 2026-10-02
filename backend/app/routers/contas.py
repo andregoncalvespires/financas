@@ -23,7 +23,7 @@ LEFT JOIN tipo_conta tc ON tc.id = c.tipo_conta_id
 LEFT JOIN recorrencia r ON r.id = c.recarga_recorrencia_id
 """
 
-TIPOS_PADRAO = [("Conta corrente", "corrente"), ("Poupança", "poupanca"), ("Investimento", "investimento"),
+TIPOS_PADRAO = [("Conta corrente", "corrente"), ("Investimento", "investimento"),
                 ("Dinheiro", "dinheiro"), ("Terceiros", "terceiros"), ("Ticket / Vale", "beneficio")]
 
 
@@ -53,7 +53,7 @@ def criar_tipo(body: TipoContaIn, cur=Depends(get_db), usuario: Usuario = Depend
     if cur.execute("SELECT 1 FROM tipo_conta WHERE dono_id = %s AND nome_norm = %s", (usuario.id, norm(nome))).fetchone():
         raise HTTPException(409, "já existe um tipo com este nome")
     return cur.execute("INSERT INTO tipo_conta(dono_id, nome, nome_norm, classe) VALUES (%s,%s,%s,%s) RETURNING id, nome, classe, inativo, dono_id, 0 AS em_uso",
-                       (usuario.id, nome, norm(nome), body.classe)).fetchone()
+                       (usuario.id, nome, norm(nome), "investimento" if body.classe == "poupanca" else body.classe)).fetchone()
 
 
 @router.patch("/tipos-conta/{tid}")
@@ -70,7 +70,7 @@ def alterar_tipo(tid: str, body: TipoContaPatch, cur=Depends(get_db), usuario: U
             raise HTTPException(409, "já existe um tipo com este nome")
         dados.update(nome=nome, nome_norm=norm(nome))
     if body.classe is not None:
-        dados["classe"] = body.classe
+        dados["classe"] = "investimento" if body.classe == "poupanca" else body.classe
     if body.inativo is not None:
         dados["inativo"] = body.inativo
     if dados:
@@ -142,7 +142,8 @@ def criar(body: ContaIn, cur=Depends(get_db), usuario: Usuario = Depends(usuario
     if body.tipo_conta_id:
         t = _tipo_valido(cur, body.tipo_conta_id, usuario.id)
     else:
-        t = cur.execute("SELECT id, classe FROM tipo_conta WHERE dono_id = %s AND classe = %s ORDER BY inativo, criado_em LIMIT 1", (usuario.id, body.tipo)).fetchone()
+        classe = "investimento" if body.tipo == "poupanca" else body.tipo      # a poupança agora é um subtipo de investimento
+        t = cur.execute("SELECT id, classe FROM tipo_conta WHERE dono_id = %s AND classe = %s ORDER BY inativo, criado_em LIMIT 1", (usuario.id, classe)).fetchone()
         if not t:
             raise HTTPException(422, "tipo de conta inválido")
     if (body.recarga_valor_centavos or body.recarga_dia) and t["classe"] != "beneficio":

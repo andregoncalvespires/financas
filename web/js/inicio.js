@@ -31,6 +31,7 @@ export async function inicio(raiz, ctx) {
   const ateISO = fimDoPeriodo(meses);
   const mes = mesISO();
   await gerarRecorrencias();
+  try { await POST('/api/investimentos/recalcular'); } catch { /* sem investimentos ou offline: segue */ }   // rendimentos previstos das contas de investimento
   const [sd, resumo, caps, lem] = await Promise.all([GET(`/api/saldo-disponivel?ate=${ateISO}`), GET(`/api/resumo/mensal?mes=${mesResumo || mes}`), GET('/api/capturas'), GET(`/api/lembretes?ate=${ateISO}`)]);
   const contas = sd.contas;
   const soma = (classes, f) => contas.filter(c => classes.includes(c.tipo)).reduce((a, c) => a + f(c), 0);
@@ -131,7 +132,15 @@ function blocoEventos(l, recarregar) {
   const quando = (i) => { const d = dias_(String(i.data).slice(0, 10)); return d < 0 ? `${-d}d atrás` : d === 0 ? 'hoje' : d === 1 ? 'amanhã' : dataCurta(i.data); };
 
   const linha = (i, mostrarQuando) => {
-    const fat = i.tipo === 'fatura', transf = i.tipo === 'transferencia';
+    const fat = i.tipo === 'fatura', transf = i.tipo === 'transferencia', venc = i.tipo === 'vencimento';
+    if (venc) {
+      const d = dias_(String(i.data).slice(0, 10));
+      return h('div', { class: 'item lembrete ' + (i.atrasado ? 'atrasado' : '') },
+        mostrarQuando ? h('div', { class: 'quando' }, quando(i)) : null,
+        h('div', { class: 'corpo' }, h('b', null, `Vencimento: ${i.conta_nome}`), h('small', null, d < 0 ? `venceu há ${-d} dia(s) · decida o que fazer com o saldo` : d === 0 ? 'vence hoje' : `vence em ${d} dia(s)`)),
+        h('b', { class: 'pos' }, brl(i.valor_centavos)),
+        h('a', { class: 'btn mini-btn sec', href: '#/mais/investimentos' }, 'Ver'));
+    }
     const titulo = fat ? `Fatura ${i.cartao_nome}` : transf ? 'Transferência' : (i.favorecido_nome || i.descricao || i.categoria_nome || 'Previsto');
     const sub = transf ? [i.origem_nome && i.destino_nome ? `${i.origem_nome} → ${i.destino_nome}` : i.conta_nome, i.descricao].filter(Boolean).join(' · ') : fat ? `vence ${dataCurta(i.data)} · ${i.fechada ? 'fechada' : 'ainda aberta'}${i.alem_periodo ? ' · após o período' : ''}` : [i.conta_nome, i.categoria_nome].filter(Boolean).join(' · ');
     return h('div', { class: 'item lembrete ' + (i.atrasado ? 'atrasado ' : '') + (i.alem_periodo ? 'alem' : '') },

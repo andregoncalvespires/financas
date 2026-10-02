@@ -58,6 +58,33 @@ class ContaPatch(BaseModel):
     inativa: Optional[bool] = None
 
 
+SUBTIPOS_INV = Literal["poupanca", "tesouro_selic", "tesouro_prefixado", "tesouro_ipca", "cdb", "lci", "lca", "lc", "la",
+                       "debenture", "cri_cra", "fundo_rf", "previdencia", "renda_variavel", "outro"]
+
+
+class InvestimentoIn(BaseModel):
+    subtipo: SUBTIPOS_INV
+    indexador: Optional[Literal["prefixado", "cdi", "selic", "ipca", "poupanca", "manual"]] = None   # vazio = o padrão do subtipo
+    taxa: Optional[float] = Field(default=None, ge=0, le=1000)
+    data_aplicacao: Optional[date] = None
+    dia_aniversario: Optional[int] = Field(default=None, ge=1, le=31)
+    data_vencimento: Optional[date] = None
+    isento_ir: Optional[bool] = None                      # vazio = o padrão do subtipo
+    alerta_dias: int = Field(default=30, ge=0, le=365)
+
+
+class PremissasIn(BaseModel):
+    selic: float = Field(ge=0, le=100)
+    cdi: float = Field(ge=0, le=100)
+    ipca: float = Field(ge=-10, le=100)
+    tr: float = Field(ge=-10, le=100)
+
+
+class AtualizarValorIn(BaseModel):
+    valor_centavos: int = Field(ge=0)                    # valor total atual do investimento
+    data: Optional[date] = None
+
+
 class ConviteContaIn(BaseModel):
     email: EmailStr
     papel: Literal["leitor", "editor", "gestor"] = "editor"

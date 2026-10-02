@@ -54,8 +54,14 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 ## O que a aplicação faz
 
 **Contas e saldos**
-- Contas à ordem, poupança, investimentos, dinheiro vivo, contas de terceiros e **benefícios** (cartão de refeição ou de alimentação) com **carregamento mensal** automático, que pode ajustar ou desativar. Cria os seus próprios **tipos de conta**.
+- Contas à ordem, investimentos, dinheiro vivo, contas de terceiros e **benefícios** (cartão de refeição ou de alimentação) com **carregamento mensal** automático, que pode ajustar ou desativar. Cria os seus próprios **tipos de conta**.
 - **Saldo disponível calculado**: saldo atual menos o que está previsto sair (contas a pagar, faturas e transferências planeadas) nos meses escolhidos (só este mês, este e o próximo, 3 ou 6 meses, sempre até o fim do mês), e a escolha fica lembrada no aparelho.
+
+**Investimentos**
+- Contas de investimento com **subtipo** (poupança, Tesouro Selic, Prefixado e IPCA+, CDB, LCI, LCA, LC, LA, obrigações, CRI/CRA, fundos de rendimento fixo, previdência e rendimento variável), taxa de rendimento, **dia de aniversário** e **data de vencimento**.
+- A aplicação **estima o rendimento** dos próximos meses (cria movimentos previstos de receita no dia de aniversário); quando o extrato chegar, confirma com o valor real e as estimativas seguintes são refeitas. O ecrã mostra o rendimento bruto e o **líquido estimado** (IR regressivo da renda fixa; poupança, LCI e LCA isentas).
+- As **premissas** (Selic, CDI, IPCA, TR) são definidas por si em Mais › Investimentos; nada é obtido na internet. Rendimento variável e previdência entram como **valor informado por si**.
+- **Alerta de vencimento** nos Próximos eventos e **e-mail ao dono da conta** antes de vencer (a antecedência é configurável). Tudo é estimativa para planeamento, não recomendação de investimento.
 
 **Movimentos**
 - Despesas, receitas e **transferências entre contas** (da conta à ordem para a poupança, para o dinheiro, etc.), que não distorcem as receitas e despesas do mês.
@@ -191,7 +197,7 @@ docker compose up -d
 
 ## Privacidade e segurança
 
-- Os dados ficam no seu servidor. Os únicos dados que saem dele são os que escolher enviar: os e-mails de código e convite (pelo seu fornecedor de SMTP) e, se ativar a leitura por IA, a imagem do comprovativo (para a Google).
+- Os dados ficam no seu servidor. Os únicos dados que saem dele são os que escolher enviar: os e-mails de código, convite e aviso de vencimento de investimento (pelo seu fornecedor de SMTP) e, se ativar a leitura por IA, a imagem do comprovativo (para a Google).
 - Cada pessoa só vê o que é seu ou o que foi partilhado consigo, e isso é imposto pela base de dados.
 - Os segredos (palavras-passe da base de dados e chave de proteção dos códigos) são gerados automaticamente e guardados num volume próprio do Docker.
 - Para comunicar uma falha de segurança, veja [SECURITY.md](SECURITY.md).
