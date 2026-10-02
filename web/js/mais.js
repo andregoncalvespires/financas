@@ -8,7 +8,7 @@ function h_voltar(titulo) {
 }
 
 export async function mais(raiz, ctx, sub) {
-  const telas = { contas, tiposConta, convites, categorias, recorrencias, dispositivos, perfil, sobre, excluirConta };
+  const telas = { contas, tiposConta, convites, categorias, recorrencias, dispositivos, perfil, sobre, excluirConta, administracao };
   if (sub && telas[sub]) return telas[sub](raiz, ctx);
   let n = 0;
   try { const c = await GET('/api/convites'); n = c.recebidos.length; } catch { /* ignora */ }
@@ -23,6 +23,7 @@ export async function mais(raiz, ctx, sub) {
       item('#/mais/recorrencias', 'Lançamentos recorrentes'),
       item('#/mais/dispositivos', 'Dispositivos conectados'),
       item('#/mais/perfil', 'Meu perfil'),
+      estado.eu.admin ? item('#/mais/administracao', 'Administração') : null,
       item('#/mais/sobre', 'Sobre o aplicativo', h('span', { class: 'dica' }, `v${VERSAO_APP} ›`))),
     h('button', { class: 'btn sec', onclick: acao(async () => { await POST('/api/auth/sair'); window.dispatchEvent(new Event('sessao-expirada')); }) }, 'Sair deste dispositivo'),
     h('p', { class: 'dica centro' }, estado.eu.email));
@@ -411,6 +412,19 @@ async function perfil(raiz, ctx) {
     h('h2', null, 'Seus dados'),
     h('a', { class: 'btn sec', href: '/api/exportar/completo', download: '' }, 'Exportar tudo (planilha + comprovantes)'),
     h('a', { class: 'btn link perigo', href: '#/mais/excluirConta' }, 'Excluir minha conta e todos os meus dados'));
+}
+
+// ---------- administração (só quem é o ADMIN_EMAIL) ----------
+async function administracao(raiz, ctx) {
+  const us = await GET('/api/admin/usuarios');
+  const quando = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'nunca';
+  limpar(raiz).append(voltar('Administração'),
+    h('p', { class: 'dica' }, `${us.length} pessoa(s) cadastrada(s). Contas e cartões são os ativos de que a pessoa é dona. O último acesso é aproximado (atualiza no máximo a cada hora).`),
+    us.map(u => h('div', { class: 'linha item sem-clique' },
+      h('div', { class: 'corpo' }, h('b', null, u.nome, u.id === estado.eu.id ? h('small', { class: 'selo' }, 'você') : null),
+        h('small', null, u.email),
+        h('small', null, `cadastro ${dataLonga(u.criado_em)} · último acesso ${quando(u.ultimo_acesso)}`)),
+      h('small', { class: 'centro' }, `${u.contas} conta(s)`, h('br'), `${u.cartoes} cartão(ões)`))));
 }
 
 // ---------- sobre o aplicativo ----------

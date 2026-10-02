@@ -93,6 +93,12 @@ Any SMTP server that accepts **user name and password** works (a sending service
 </details>
 
 <details>
+<summary><b>Administration area (who signed up and when they last used the app)</b></summary>
+
+Optional and read-only. Fill in `ADMIN_EMAIL: "you@example.com"` in `docker-compose.yml` and run `docker compose up -d`. Whoever signs in with that e-mail sees **More › Administration**: the list of registered people, sign-up date, last access, and how many active accounts and cards each one owns (only the ones they own). The area **does not show transactions, amounts or account names**. With `ADMIN_EMAIL` empty (the default) the area does not exist for anyone.
+</details>
+
+<details>
 <summary><b>Receipt reading with AI (Google Gemini)</b></summary>
 
 Entirely optional: without a key everything works, only automatic reading is off and you enter transactions by hand.

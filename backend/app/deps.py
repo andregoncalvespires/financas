@@ -44,3 +44,14 @@ def usuario_atual(request: Request) -> Usuario:
 def get_db(usuario: Usuario = Depends(usuario_atual)):
     with sessao(usuario.id) as cur:
         yield cur
+
+
+def eh_admin(usuario: Usuario) -> bool:
+    """Administrador = quem entra com o e-mail de ADMIN_EMAIL. Sem ADMIN_EMAIL, ninguém é."""
+    return bool(settings.admin_email) and usuario.email.strip().lower() == settings.admin_email.strip().lower()
+
+
+def exigir_admin(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
+    if not eh_admin(usuario):
+        raise HTTPException(403, "acesso restrito ao administrador")
+    return usuario

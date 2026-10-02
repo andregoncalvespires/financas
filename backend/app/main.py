@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import exigir_configuracao, settings
 from .db import abrir_pool, fechar_pool, sessao
-from .routers import auth, capturas, faturas_import, cadastros, cartoes, conta_usuario, contas, exportar, lembretes, orcamento, resumo, transacoes
+from .routers import admin, auth, capturas, faturas_import, cadastros, cartoes, conta_usuario, contas, exportar, lembretes, orcamento, resumo, transacoes
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Finanças", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
-for r in (auth, cadastros, contas, cartoes, faturas_import, transacoes, resumo, capturas, orcamento, lembretes, exportar, conta_usuario):
+for r in (admin, auth, cadastros, contas, cartoes, faturas_import, transacoes, resumo, capturas, orcamento, lembretes, exportar, conta_usuario):
     app.include_router(r.router)
 
 

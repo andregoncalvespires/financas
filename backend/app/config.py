@@ -34,6 +34,7 @@ class Settings:
     smtp_user: str = ""
     smtp_password: str = ""
     mail_from: str = ""
+    admin_email: str = ""                # vazio = não existe área de administração
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash-lite"
     gemini_mock: bool = False
@@ -67,6 +68,7 @@ def carregar() -> Settings:
         smtp_user=e.get("SMTP_USER", ""),
         smtp_password=e.get("SMTP_PASSWORD", ""),
         mail_from=e.get("MAIL_FROM") or e.get("SMTP_USER", ""),
+        admin_email=e.get("ADMIN_EMAIL", "").strip().lower(),
         gemini_api_key=e.get("GEMINI_API_KEY", ""),
         gemini_model=e.get("GEMINI_MODEL", "gemini-3.5-flash-lite"),
         gemini_mock=_bool(e.get("GEMINI_MOCK")),

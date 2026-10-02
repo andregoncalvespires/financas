@@ -15,6 +15,7 @@ x-configuracao: &configuracao
   GEMINI_API_KEY: ""     # chave do Google Gemini para ler comprovantes por foto. Vazio = função desligada.
   APP_URL: "http://localhost:8472"   # endereço pelo qual as pessoas acessam; aparece nos e-mails de convite
   TZ: "America/Sao_Paulo"            # fuso horário das datas
+  ADMIN_EMAIL: ""        # e-mail de quem pode ver a área "Administração" (lista de pessoas, contagens). Vazio = ninguém vê.
   # Outro provedor de e-mail que não seja o Gmail? Tire o # das linhas abaixo e ajuste:
   # SMTP_HOST: "smtp.gmail.com"
   # SMTP_PORT: "587"                 # 587 = STARTTLS, 465 = SSL

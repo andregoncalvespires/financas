@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.14.0 — 2026-10-02
+- **Área de administração (opcional, somente leitura).** Preenchendo `ADMIN_EMAIL` no `docker-compose.yml`, quem entra com esse e-mail vê **Mais › Administração**: lista de pessoas cadastradas com data de cadastro, último acesso e número de contas e cartões ativos de que cada uma é dona. Não mostra lançamentos, valores nem nomes de contas. Com `ADMIN_EMAIL` vazio (padrão), ninguém tem acesso e a área nem aparece; instalações existentes não mudam nada.
+
 ## 1.13.6 — 2026-10-02
 - **Compra no cartão não tem mais "previsto".** Ao lançar (à mão ou pela leitura de notas) numa conta de cartão, a opção "Ainda não aconteceu (previsto)" some e o formulário avisa que a compra só sai do saldo quando a fatura for paga. O servidor também ignora esse pedido para cartões. As parcelas futuras continuam sendo criadas como previstas pelo próprio app, e confirmar uma parcela prevista segue funcionando.
 

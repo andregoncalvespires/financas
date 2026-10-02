@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from .. import mailer
 from ..config import settings
 from ..db import sessao
-from ..deps import COOKIE, Usuario, get_db, usuario_atual
+from ..deps import COOKIE, Usuario, eh_admin, get_db, usuario_atual
 from ..schemas import PerfilIn, SolicitarIn, VerificarIn
 from ..security import gerar_codigo, gerar_token, hash_codigo, hash_token
 
@@ -69,7 +69,7 @@ def sair(response: Response, usuario: Usuario = Depends(usuario_atual)):
 @router.get("/eu")
 def eu(cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     r = cur.execute("SELECT id, email::text AS email, nome, config FROM usuario WHERE id = %s", (usuario.id,)).fetchone()
-    return r
+    return {**r, "admin": eh_admin(usuario)}
 
 
 @router.patch("/eu")
@@ -78,7 +78,8 @@ def atualizar_eu(body: PerfilIn, cur=Depends(get_db), usuario: Usuario = Depends
         cur.execute("UPDATE usuario SET nome = %s WHERE id = %s", (body.nome, usuario.id))
     if body.config is not None:
         cur.execute("UPDATE usuario SET config = config || %s::jsonb WHERE id = %s", (json.dumps(body.config), usuario.id))
-    return cur.execute("SELECT id, email::text AS email, nome, config FROM usuario WHERE id = %s", (usuario.id,)).fetchone()
+    r = cur.execute("SELECT id, email::text AS email, nome, config FROM usuario WHERE id = %s", (usuario.id,)).fetchone()
+    return {**r, "admin": eh_admin(usuario)}
 
 
 @router.get("/dispositivos")

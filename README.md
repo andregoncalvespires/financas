@@ -93,6 +93,12 @@ Qualquer servidor SMTP que aceite **usuário e senha** serve (um serviço de env
 </details>
 
 <details>
+<summary><b>Área de administração (quem se cadastrou e quando acessou)</b></summary>
+
+Opcional e somente leitura. Preencha `ADMIN_EMAIL: "seu@email.com"` no `docker-compose.yml` e rode `docker compose up -d`. Quem entrar com esse e-mail passa a ver **Mais › Administração**, com a lista de pessoas cadastradas, a data de cadastro, o último acesso e quantas contas e cartões ativos cada uma tem (só os de que ela é dona). A área **não mostra lançamentos, valores nem nomes de contas**. Com `ADMIN_EMAIL` vazio (o padrão), a área não existe para ninguém.
+</details>
+
+<details>
 <summary><b>Leitura de comprovantes com IA (Google Gemini)</b></summary>
 
 Totalmente opcional: sem chave tudo funciona, só a leitura automática fica desligada e você lança manualmente.
