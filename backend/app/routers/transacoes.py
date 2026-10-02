@@ -80,6 +80,9 @@ def resumo_filtrado(de: date | None = None, ate: date | None = None, base: str =
 
 @router.post("/transacoes", status_code=201)
 def criar(body: TransacaoIn, cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    if body.plastico_id and body.estado != "confirmado":
+        # compra no cartão não tem "previsto" escolhido pelo usuário: o que sai do saldo é o pagamento da fatura
+        body = body.model_copy(update={"estado": "confirmado"})
     criadas = criar_transacoes(cur, usuario.id, body)
     ids = [c["id"] for c in criadas]
     return cur.execute(SQL_TX + " WHERE t.id = ANY(%s) ORDER BY t.data_competencia", (ids,)).fetchall()
@@ -109,6 +112,8 @@ def alterar(tid: str, body: TransacaoPatch, cur=Depends(get_db)):
         campos["valor_centavos"] = abs(body.valor_centavos) * (1 if t["valor_centavos"] > 0 else -1)
     for k in ("descricao", "forma_pagamento", "estado", "data_caixa"):
         v = getattr(body, k)
+        if k == "estado" and t["plastico_id"]:
+            continue  # estado de compra no cartão não é escolhido pelo usuário
         if v is not None:
             campos[k] = v
     if body.favorecido_id or body.favorecido_nome or body.categoria_id:

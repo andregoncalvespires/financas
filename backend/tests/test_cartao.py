@@ -121,3 +121,21 @@ def test_dono_remove_portador_e_acesso_some(cenario):
     v = a.post(f"/api/plasticos/{s['adicional']['id']}/convites", json={"email": b.email}).json()
     assert b.post(f"/api/convites/{v['id']}/aceitar").status_code == 200
     assert a.post(f"/api/plasticos/{s['adicional']['id']}/convites", json={"email": "outro@x.com"}).status_code == 409
+
+
+def test_compra_no_cartao_nunca_fica_prevista(nova_pessoa):
+    from conftest import conta
+    a = nova_pessoa("cartao_prev")
+    cc = conta(a, "Corrente", 100000)
+    k = a.post("/api/cartoes", json={"nome": "Visa", "bandeira": "visa", "dia_fechamento": 28, "dia_vencimento": 4,
+                                     "conta_pagamento_id": cc["id"], "limite_centavos": 800000, "final_principal": "1111"}).json()
+    pl = k["plasticos"][0]["id"]
+    t = a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 3000, "data_competencia": "2026-09-10",
+                                        "plastico_id": pl, "estado": "previsto"}).json()
+    assert t[0]["estado"] == "confirmado"                        # pedido de "previsto" é ignorado
+    r = a.patch(f"/api/transacoes/{t[0]['id']}", json={"estado": "previsto"})
+    assert r.status_code == 200 and r.json()["estado"] == "confirmado"
+    # na conta corrente o "previsto" continua valendo
+    c = a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 500, "data_competencia": "2026-09-10",
+                                        "conta_id": cc["id"], "estado": "previsto"}).json()
+    assert c[0]["estado"] == "previsto"

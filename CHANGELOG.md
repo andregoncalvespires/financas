@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.13.6 — 2026-10-02
+- **Compra no cartão não tem mais "previsto".** Ao lançar (à mão ou pela leitura de notas) numa conta de cartão, a opção "Ainda não aconteceu (previsto)" some e o formulário avisa que a compra só sai do saldo quando a fatura for paga. O servidor também ignora esse pedido para cartões. As parcelas futuras continuam sendo criadas como previstas pelo próprio app, e confirmar uma parcela prevista segue funcionando.
+
 ## 1.13.5 — 2026-10-01
 - **Faturas vazias não ficam mais abertas.** Ao excluir lançamentos (um ou vários), as faturas de cartão que ficaram sem nenhuma compra, abertas e sem pagamento são removidas automaticamente. Faturas vazias que já existiam também somem ao abrir **Cartões**. Faturas pagas ou com pagamento vinculado nunca são removidas; se uma compra nova cair no mês, a fatura é recriada sozinha.
 

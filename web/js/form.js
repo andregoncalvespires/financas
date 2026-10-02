@@ -77,6 +77,8 @@ export function formTransacao(opts) {
     h('option', { value: 'parcela' }, 'Cada parcela no seu mês'), h('option', { value: 'compra' }, 'Compra inteira no mês da compra'));
   const previsto = h('input', { type: 'checkbox' });
   previsto.checked = (ini.estado || (ed && ed.estado)) === 'previsto';
+  const cPrevisto = h('label', { class: 'check' }, previsto, h('span', null, 'Ainda não aconteceu (previsto)'));
+  const avisoCartao = h('p', { class: 'dica', hidden: true }, 'Compra no cartão entra na fatura e só sai do seu saldo quando a fatura for paga.');
   const msg = h('p', { class: 'erro-form', hidden: true });
 
   const blocoModo = campo('Como contar nos relatórios e no orçamento (competência)', modoComp, 'A fatura e o caixa seguem sempre as parcelas; isto só define em que mês o gasto aparece.');
@@ -106,6 +108,9 @@ export function formTransacao(opts) {
     const cartao = !transf && (ed ? !!ed.plastico_id : d && d.tipo === 'plastico');
     blocoParcelas.hidden = !!ed || !cartao;
     atualizarModo();
+    ver(cPrevisto, !cartao);
+    avisoCartao.hidden = !cartao;
+    if (cartao) previsto.checked = false;
     ver(blocoCaixa, !transf && !cartao);
     ver(blocoForma, !transf && !cartao);
     ver(cFav, !transf); ver(cCat, !transf); ver(cDest, !transf);
@@ -134,7 +139,8 @@ export function formTransacao(opts) {
     cOrigem, cDestinoT,
     cCat,
     blocoForma, blocoCaixa, blocoParcelas,
-    h('label', { class: 'check' }, previsto, h('span', null, 'Ainda não aconteceu (previsto)')),
+    cPrevisto,
+    avisoCartao,
     msg,
     h('div', { class: 'linha-botoes' },
       opts.aoCancelar ? h('button', { type: 'button', class: 'btn sec', onclick: opts.aoCancelar }, 'Cancelar') : null, enviar));
