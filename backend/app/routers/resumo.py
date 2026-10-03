@@ -16,7 +16,9 @@ def saldo_disponivel(ate: date | None = None, visao: str | None = Query(default=
     Sem subdivisões manuais: tudo é calculado a partir dos lançamentos previstos.
     visao='caixa' (padrão): conta cada item quando o dinheiro se move (data de caixa; fatura no vencimento).
     visao='competencia' (prudente): as SAÍDAS entram quando a despesa acontece (competência), mesmo que o dinheiro saia depois;
-    as ENTRADAS continuam só pelo caixa, para nunca mostrar mais dinheiro do que estará na conta. Sem `visao`, vale a do perfil."""
+    as ENTRADAS só contam quando as DUAS datas já chegaram (a mais tardia entre caixa e competência), para nunca mostrar mais dinheiro
+    do que estará na conta nem dinheiro que ainda pertence a um mês futuro (ex.: vale creditado em 28/10 para o mês de novembro).
+    Sem `visao`, vale a do perfil."""
     if visao is None:
         cfg = cur.execute("SELECT config FROM usuario WHERE id = %s", (usuario.id,)).fetchone()
         visao = ((cfg or {}).get("config") or {}).get("visao_disponibilidade")
@@ -28,7 +30,9 @@ def saldo_disponivel(ate: date | None = None, visao: str | None = Query(default=
                   COALESCE(SUM(t.valor_centavos) FILTER (WHERE t.valor_centavos < 0), 0)::bigint AS saidas,
                   COALESCE(SUM(t.valor_centavos) FILTER (WHERE t.valor_centavos > 0), 0)::bigint AS entradas
            FROM transacao t WHERE t.conta_id IS NOT NULL AND t.estado = 'previsto' AND t.tipo <> 'transferencia'
-                  AND (t.data_caixa <= %(ate)s OR (%(comp)s AND t.valor_centavos < 0 AND t.data_competencia <= %(ate)s)) GROUP BY 1, 2""",
+                  AND (CASE WHEN NOT %(comp)s THEN t.data_caixa <= %(ate)s
+                            WHEN t.valor_centavos < 0 THEN (t.data_caixa <= %(ate)s OR t.data_competencia <= %(ate)s)
+                            ELSE (t.data_caixa <= %(ate)s AND t.data_competencia <= %(ate)s) END) GROUP BY 1, 2""",
         {"ate": ate, "comp": visao == "competencia"}).fetchall()
     # transferências previstas movem o disponível entre contas (a origem reserva o valor, o destino o recebe) sem ser pagar/receber
     transf = {r["conta_id"]: r["v"] for r in cur.execute(

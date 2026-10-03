@@ -491,7 +491,7 @@ function secaoVisao() {
   sel.value = atual;
   return [h('h2', null, 'Disponibilidade no Início'),
     campo('Visão padrão do quadro de posição', sel),
-    h('p', { class: 'dica' }, 'Caixa: cada valor conta no dia em que o dinheiro se move (a fatura do cartão, no vencimento). Compromissos: as despesas contam quando acontecem, mesmo que o dinheiro saia depois (compra no cartão, cheque, Pix agendado); as entradas continuam só pelo dia em que caem na conta. Você também pode trocar direto na tela inicial.')];
+    h('p', { class: 'dica' }, 'Caixa: cada valor conta no dia em que o dinheiro se move (a fatura do cartão, no vencimento). Compromissos: as despesas contam quando acontecem, mesmo que o dinheiro saia depois (compra no cartão, cheque, Pix agendado); as entradas só contam quando o dinheiro já caiu e a competência já chegou (a data mais tardia das duas). Você também pode trocar direto na tela inicial.')];
 }
 
 async function perfil(raiz, ctx) {

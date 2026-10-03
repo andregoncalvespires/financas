@@ -123,3 +123,23 @@ def test_visao_competencia_e_prudente(nova_pessoa):
     assert a.get(f"/api/saldo-disponivel?ate={ate}").json()["visao"] == "competencia"
     assert a.get(f"/api/saldo-disponivel?ate={ate}&visao=caixa").json()["visao"] == "caixa"
     assert a.get(f"/api/saldo-disponivel?ate={ate}&visao=xx").status_code == 422
+
+
+def test_visao_competencia_entrada_conta_na_data_mais_tardia(nova_pessoa):
+    """Vale creditado antes do mês de competência: a entrada só entra na visão prudente quando a competência chega. Caixa não muda."""
+    a = nova_pessoa()
+    cc = conta(a, "Corrente", 0)
+    d = lambda n: (HOJE + timedelta(days=n)).isoformat()
+    ate = d(10)
+    e = lambda v, comp, cx: a.post("/api/transacoes", json={"tipo": "receita", "valor_centavos": v, "data_competencia": comp, "data_caixa": cx,
+                                                            "conta_id": cc["id"], "estado": "previsto"})
+    assert e(1000, d(1), d(1)).status_code == 201          # as duas datas dentro da janela: entra
+    assert e(2000, d(30), d(2)).status_code == 201         # caixa dentro, competência depois (vale): só pelo caixa
+    assert e(4000, d(1), d(30)).status_code == 201         # competência dentro, caixa depois (salário atrasado): não entra
+    cx = a.get(f"/api/saldo-disponivel?ate={ate}&visao=caixa").json()["contas"][0]
+    assert cx["entradas_previstas"] == 1000 + 2000         # visão de caixa inalterada
+    cp = a.get(f"/api/saldo-disponivel?ate={ate}&visao=competencia").json()["contas"][0]
+    assert cp["entradas_previstas"] == 1000                # a de 2000 espera a competência; a de 4000 espera o caixa
+    # quando a janela alcança a competência do vale, ele passa a contar
+    cp2 = a.get(f"/api/saldo-disponivel?ate={d(31)}&visao=competencia").json()["contas"][0]
+    assert cp2["entradas_previstas"] == 1000 + 2000 + 4000

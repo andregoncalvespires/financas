@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.24.1 — 2026-10-03
+- **Compromissos: entradas contam na data mais tardia entre caixa e competência.** Um vale creditado em 28/10 com competência em 01/11 deixava a disponibilidade de outubro maior do que devia. Na visão **Compromissos** a entrada só passa a contar quando o dinheiro **já caiu e** a competência **já chegou**; um salário com caixa depois da competência continua contando só no caixa. A visão **Caixa** não mudou. Depois que a recarga é confirmada, o dinheiro está de fato no saldo e entra normalmente.
+
 ## 1.24.0 — 2026-10-03
 - **Competência diferente do mês do dinheiro, nas recorrências.** Em ticket/vale, por exemplo, o crédito cai no fim do mês para ser usado no seguinte. Agora a recarga e as recorrências de conta têm o campo **"Pertence a"**: **mesmo mês** (como sempre foi), **mês seguinte** ou **mês anterior** (útil para um salário pago no mês seguinte ao trabalhado). Quando não é o mesmo mês, a **competência fica no dia 1 do mês escolhido** e o **caixa continua no dia da recorrência**. O dinheiro aparece na posição do Início no dia em que entra, e a receita conta no resumo do mês e no orçamento do mês a que pertence.
 - Onde configurar: **Contas › (conta de benefício) › Recarga mensal › A recarga pertence a**, e **Mais › Lançamentos recorrentes** (criar ou editar uma recorrência de conta). Compras recorrentes no cartão não deslocam a competência. Excluir uma ocorrência e "pular o mês" continuam referidos ao mês do dinheiro.

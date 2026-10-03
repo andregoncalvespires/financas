@@ -57,7 +57,7 @@ export async function inicio(raiz, ctx) {
         h('span', null, 'A receber ', h('b', null, brl(total(c => c.entradas_previstas)))),
         h('span', null, 'A pagar ', h('b', null, brl(total(c => c.saidas_previstas)))),
         h('span', null, 'Faturas ', h('b', null, brl(total(c => c.faturas_total))))),
-      sd.visao === 'competencia' ? h('p', { class: 'dica' }, 'Compromissos: despesas contadas quando acontecem, inclusive faturas que vencem depois do período. Entradas só pelo caixa.') : null),
+      sd.visao === 'competencia' ? h('p', { class: 'dica' }, 'Compromissos: despesas contadas quando acontecem, inclusive faturas que vencem depois do período. Entradas só quando o dinheiro e a competência já chegaram.') : null),
     blocoEventos(lem, () => inicio(raiz, ctx)),
     h('h2', null, 'Contas'),
     contas.length ? contas.map(c => cartaoConta(c, estado.eu.id)) : vazio('Nenhuma conta ainda. Vá em Mais › Contas para criar a primeira.'),
