@@ -46,7 +46,7 @@ If something does not work, see [Common problems](#common-problems).
 > Prefer a walk-through for people who only use the app? There is a **[user guide in PDF](docs/Guia-do-usuario.pdf)** (in Brazilian Portuguese), with no installation details.
 
 <p align="center">
-<img src="docs/img/01-inicio.png" width="180" alt="Home"> <img src="docs/img/02-proximos-eventos.png" width="180" alt="Upcoming events"> <img src="docs/img/05-lancamentos.png" width="180" alt="Transactions"> <img src="docs/img/06-filtros.png" width="180" alt="Filters"> <img src="docs/img/07-filtro-cartao.png" width="180" alt="Card query"> <img src="docs/img/08-cartoes.png" width="180" alt="Cards and statements">
+<img src="docs/img/01-inicio.png" width="180" alt="Home"> <img src="docs/img/02-proximos-eventos.png" width="180" alt="Upcoming events"> <img src="docs/img/05-lancamentos.png" width="180" alt="Transactions"> <img src="docs/img/06-filtros.png" width="180" alt="Filters"> <img src="docs/img/07-filtro-cartao.png" width="180" alt="Card query"> <img src="docs/img/08-cartoes.png" width="180" alt="Cards and statements"> <img src="docs/img/09-investimentos.png" width="180" alt="Investments: evolution and scenarios"> <img src="docs/img/10-investimentos-aloc.png" width="180" alt="Allocation and investment accounts">
 </p>
 
 <sub>Fictional data, for demonstration only.</sub>
@@ -83,6 +83,7 @@ If something does not work, see [Common problems](#common-problems).
 
 **Planning**
 - **Budget** by category with validity rules: open-ended, for a number of months, for specific months of the year, or an adjustment to a single month.
+- **Navigation**: the bottom bar has Home, Transactions, Capture, Cards and Investments; the **More** menu (accounts, categories, recurring entries, invitations, profile) is the ☰ icon at the top right.
 - **Home** screen: a summary by groups (available, benefits, investments, others and total) and **upcoming events** (bills to pay and receive, statements and planned transfers), with a button to confirm what has already happened.
 
 **Receipt reading with AI (optional)**

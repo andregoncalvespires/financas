@@ -46,7 +46,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 > Prefere um passo a passo para quem vai só usar a aplicação? Há um **[guia do utilizador em PDF](docs/Guia-do-usuario.pdf)** (em português do Brasil), sem detalhes técnicos de instalação.
 
 <p align="center">
-<img src="docs/img/01-inicio.png" width="180" alt="Início"> <img src="docs/img/02-proximos-eventos.png" width="180" alt="Próximos eventos"> <img src="docs/img/05-lancamentos.png" width="180" alt="Lançamentos"> <img src="docs/img/06-filtros.png" width="180" alt="Filtros"> <img src="docs/img/07-filtro-cartao.png" width="180" alt="Consulta por cartão"> <img src="docs/img/08-cartoes.png" width="180" alt="Cartões e faturas">
+<img src="docs/img/01-inicio.png" width="180" alt="Início"> <img src="docs/img/02-proximos-eventos.png" width="180" alt="Próximos eventos"> <img src="docs/img/05-lancamentos.png" width="180" alt="Lançamentos"> <img src="docs/img/06-filtros.png" width="180" alt="Filtros"> <img src="docs/img/07-filtro-cartao.png" width="180" alt="Consulta por cartão"> <img src="docs/img/08-cartoes.png" width="180" alt="Cartões e faturas"> <img src="docs/img/09-investimentos.png" width="180" alt="Investimentos: evolução e cenários"> <img src="docs/img/10-investimentos-aloc.png" width="180" alt="Alocação e contas de investimento">
 </p>
 
 <sub>Dados fictícios, apenas para demonstração.</sub>
@@ -83,6 +83,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Planeamento**
 - **Orçamento** por categoria com regras de vigência: sem data final, por número de meses, em meses específicos do ano ou ajuste de um único mês.
+- **Navegação**: a barra inferior tem Início, Lançamentos, Capturar, Cartões e Investimentos; o menu **Mais** (contas, categorias, recorrências, convites, perfil) fica no ícone ☰ no canto superior direito.
 - **Início**: resumo por grupos (disponível, benefícios, investimentos, outros e total) e **próximos eventos** (contas a pagar e a receber, faturas e transferências planeadas), com botão para confirmar o que já aconteceu.
 
 **Leitura de comprovativos com IA (opcional)**
