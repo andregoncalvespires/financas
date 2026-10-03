@@ -66,3 +66,21 @@ def test_resumo_mensal_por_grupo(nova_pessoa):
     assert [g["grupo"] for g in r["grupos"]] == ["Lazer", "Alimentação"] or [g["grupo"] for g in r["grupos"]] == ["Alimentação", "Lazer"]
     alim = next(g for g in r["grupos"] if g["grupo"] == "Alimentação")
     assert alim["total"] == -12500 and len(alim["categorias"]) == 2
+
+
+def test_projetado_e_saldo_mais_entradas_saidas_e_faturas(nova_pessoa):
+    """O que a tela de Início mostra como Disponível/Total (projetado) tem que fechar com as parcelas exibidas: saldo + a receber + a pagar + faturas."""
+    from datetime import date, timedelta
+    from conftest import conta
+    a = nova_pessoa("fecha")
+    c = conta(a, "Corrente", 100000)
+    hoje = date.today()
+    for tipo, v in (("despesa", 20000), ("despesa", 5000), ("receita", 300000)):
+        r = a.post("/api/transacoes", json={"tipo": tipo, "valor_centavos": v, "data_competencia": hoje.isoformat(), "data_caixa": hoje.isoformat(),
+                                           "conta_id": c["id"], "estado": "previsto"})
+        assert r.status_code == 201, r.text
+    s = a.get(f"/api/saldo-disponivel?ate={hoje + timedelta(days=60)}").json()
+    g = s["geral"]
+    assert g["projetado"] == g["saldo_atual"] + g["entradas_previstas"] + g["saidas_previstas"] + g["faturas"]
+    assert g["projetado"] == 100000 + 300000 - 25000
+    assert g["livre"] == 100000 - 25000                        # `livre` segue sendo o valor sem as entradas

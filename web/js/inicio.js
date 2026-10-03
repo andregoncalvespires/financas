@@ -35,7 +35,7 @@ export async function inicio(raiz, ctx) {
   const [sd, resumo, caps, lem] = await Promise.all([GET(`/api/saldo-disponivel?ate=${ateISO}`), GET(`/api/resumo/mensal?mes=${mesResumo || mes}`), GET('/api/capturas'), GET(`/api/lembretes?ate=${ateISO}`)]);
   const contas = sd.contas;
   const soma = (classes, f) => contas.filter(c => classes.includes(c.tipo)).reduce((a, c) => a + f(c), 0);
-  const livre = (classes) => soma(classes, c => c.livre);
+  const livre = (classes) => soma(classes, c => c.projetado);       // inclui o que ainda vai entrar: assim o Total bate com Saldo + A receber + A pagar + Faturas
   const total = (f) => contas.reduce((a, c) => a + f(c), 0);
 
   limpar(raiz).append(
@@ -59,7 +59,7 @@ export async function inicio(raiz, ctx) {
     h('a', { class: 'btn sec', href: '#/orcamento', onclick: () => definirMesOrcamento(mesResumo || mes) }, 'Ver orçamento do mês'));
 }
 
-// Disponível = saldo + saídas previstas + faturas a vencer no período (por grupo de contas).
+// Disponível = saldo + a receber + a pagar + faturas a vencer no período (por grupo de contas): a posição esperada ao fim do período.
 function quadroResumo(livre) {
   const d = livre(GRUPOS.disponivel), b = livre(GRUPOS.beneficio), inv = livre(GRUPOS.investimento), o = livre(GRUPOS.outros);
   const sub = d + b;
@@ -80,7 +80,7 @@ function cartaoConta(c, eu) {
     h('summary', null,
       h('div', null, h('b', null, c.nome), c.dono_id !== eu ? h('small', { class: 'selo' }, `de ${c.dono_nome}`) : null,
         c.tipo_nome ? h('small', { class: 'selo' }, c.tipo_nome) : null),
-      h('div', { class: 'valor ' + (c.livre < 0 ? 'neg' : '') }, brl(c.livre))),
+      h('div', { class: 'valor ' + (c.projetado < 0 ? 'neg' : '') }, brl(c.projetado))),
     h('dl', { class: 'detalhe' },
       h('dt', null, 'Saldo atual'), h('dd', null, brl(c.saldo_atual)),
       formas.map(([f, v]) => [h('dt', null, `A pagar · ${FORMAS[f] || f}`), h('dd', null, brl(v))]),

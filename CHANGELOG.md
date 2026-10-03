@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.21.1 — 2026-10-03
+- **Início: o Total agora bate com a linha de baixo.** O quadro de posição (Disponível, Benefícios, Subtotal, Investimento, Outros e Total) passa a **incluir o que ainda vai entrar no período** (salário, recargas de benefício, rendimentos previstos). Assim o Total é exatamente **Saldo + A receber + A pagar + Faturas**. Antes o quadro deixava o "A receber" de fora, e a diferença crescia a cada mês a mais escolhido. O mesmo vale para o valor de cada conta na lista de Contas. Os dados da API não mudam: `livre` continua sendo o valor sem as entradas e `projetado` é o que a tela mostra.
+
 ## 1.21.0 — 2026-10-03
 - **⚠ Ação necessária: a leitura por IA agora é liberada por pessoa.** Ao atualizar, **ninguém (exceto o administrador do `ADMIN_EMAIL`) tem a IA do servidor**; quem já usava deixa de usar até você liberar. Em **Mais › Administração**, cada pessoa tem o botão **IA do servidor: desligada/liberada**. Novas contas também nascem desligadas (o aviso de cadastro chega no seu e-mail).
 - **Chave própria do Google.** Em **Mais › Meu perfil › Leitura por IA** cada pessoa pode cadastrar a sua chave do Gemini (com um passo a passo para criá-la no Google AI Studio). O app testa a chave ao salvar, guarda-a **cifrada** (só a própria pessoa a usa; ela nunca volta para a tela, só os 4 últimos caracteres) e, com chave própria, **não há limite diário**. O `CAPTURAS_POR_DIA` vale só para quem usa a chave do servidor. Não há cota mensal nem pedido de liberação.

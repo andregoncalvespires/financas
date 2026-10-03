@@ -55,7 +55,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Contas e saldos**
 - Contas à ordem, investimentos, dinheiro vivo, contas de terceiros e **benefícios** (cartão de refeição ou de alimentação) com **carregamento mensal** automático, que pode ajustar ou desativar. Cria os seus próprios **tipos de conta**.
-- **Saldo disponível calculado**: saldo atual menos o que está previsto sair (contas a pagar, faturas e transferências planeadas) nos meses escolhidos (só este mês, este e o próximo, 3 ou 6 meses, sempre até o fim do mês), e a escolha fica lembrada no aparelho.
+- **Saldo disponível calculado**: saldo atual mais o que está previsto entrar, menos o que está previsto sair (contas a pagar, faturas e transferências planeadas) nos meses escolhidos (só este mês, este e o próximo, 3 ou 6 meses, sempre até o fim do mês), e a escolha fica lembrada no aparelho.
 
 **Investimentos**
 - Contas de investimento com **subtipo** (poupança, Tesouro Selic, Prefixado e IPCA+, CDB, LCI, LCA, LC, LA, obrigações, CRI/CRA, fundos de rendimento fixo, previdência e rendimento variável), taxa de rendimento, **dia de aniversário** e **data de vencimento**.

@@ -55,7 +55,7 @@ If something does not work, see [Common problems](#common-problems).
 
 **Accounts and balances**
 - Checking accounts, investments, cash, third-party accounts and **benefit cards** (meal or food vouchers) with an automatic **monthly top-up** you can adjust or turn off. You create your own **account types**.
-- **Calculated available balance**: current balance minus what is planned to go out (bills, credit card statements and planned transfers) over the months you choose (this month only, this and next, 3 or 6 months, always up to the end of a month); the choice is remembered on the device.
+- **Calculated available balance**: current balance plus what is planned to come in, minus what is planned to go out (bills, credit card statements and planned transfers) over the months you choose (this month only, this and next, 3 or 6 months, always up to the end of a month); the choice is remembered on the device.
 
 **Investments**
 - Investment accounts with a **subtype** (savings, Tesouro Selic, Prefixado and IPCA+, CDB, LCI, LCA, LC, LA, debentures, CRI/CRA, fixed-income funds, pension plans and variable income), yield rate, **anniversary day** and **maturity date**.
