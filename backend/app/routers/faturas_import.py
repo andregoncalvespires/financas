@@ -10,7 +10,7 @@ from uuid import uuid4
 import pikepdf
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from .. import gemini
+from .. import gemini, ia
 from ..config import settings
 from ..db import sessao
 from ..deps import Usuario, get_db, usuario_atual
@@ -129,6 +129,9 @@ def _casar(linhas: list[dict], candidatos: list[dict]) -> None:
 
 @router.post("/faturas/importar/ler")
 def ler(arquivo: UploadFile = File(...), cartao_id: str = Form(...), senha: str = Form(""), usuario: Usuario = Depends(usuario_atual)):
+    uso = ia.modo(usuario)
+    if uso["modo"] == "nenhum":
+        raise HTTPException(403, "importar fatura em PDF exige a leitura por IA, que não está ativa para você (peça ao administrador ou cadastre sua chave em Meu perfil)")
     bruto = arquivo.file.read(MAX_BYTES + 1)
     if len(bruto) > MAX_BYTES:
         raise HTTPException(413, "arquivo maior que 12 MB")
@@ -136,12 +139,14 @@ def ler(arquivo: UploadFile = File(...), cartao_id: str = Form(...), senha: str 
     with sessao(usuario.id) as cur:
         if not cur.execute("SELECT dono_cartao(%s) AS ok", (cartao_id,)).fetchone()["ok"]:
             raise HTTPException(403, "só o dono da conta de cartão importa faturas")
-        n = cur.execute("SELECT count(*) AS n FROM captura WHERE criado_por = %s AND criado_em > now() - interval '24 hours'", (usuario.id,)).fetchone()["n"]
-        if n >= settings.capturas_por_dia:
-            raise HTTPException(429, f"limite de {settings.capturas_por_dia} leituras por dia atingido")
-        cap = cur.execute("INSERT INTO captura(criado_por, status) VALUES (%s, 'descartada') RETURNING id", (usuario.id,)).fetchone()   # só para contar o uso diário
+        if uso["modo"] == "servidor":      # o limite diário protege a chave do servidor; com chave própria não há limite
+            n = cur.execute("SELECT count(*) AS n FROM captura WHERE criado_por = %s AND chave_ia IS DISTINCT FROM 'propria' AND chave_ia IS DISTINCT FROM 'nenhuma' "
+                            "AND criado_em > now() - interval '24 hours'", (usuario.id,)).fetchone()["n"]
+            if n >= settings.capturas_por_dia:
+                raise HTTPException(429, f"limite de {settings.capturas_por_dia} leituras por dia atingido")
+        cap = cur.execute("INSERT INTO captura(criado_por, status, chave_ia) VALUES (%s, 'descartada', %s) RETURNING id", (usuario.id, uso["modo"])).fetchone()   # conta o uso
     try:
-        bruto_ia, meta = gemini.extrair_fatura(pdf)
+        bruto_ia, meta = gemini.extrair_fatura(pdf, uso["chave"])
         erro = None
     except gemini.GeminiErro as e:
         bruto_ia, meta, erro = None, {}, str(e)

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.21.0 — 2026-10-03
+- **⚠ Ação necessária: a leitura por IA agora é liberada por pessoa.** Ao atualizar, **ninguém (exceto o administrador do `ADMIN_EMAIL`) tem a IA do servidor**; quem já usava deixa de usar até você liberar. Em **Mais › Administração**, cada pessoa tem o botão **IA do servidor: desligada/liberada**. Novas contas também nascem desligadas (o aviso de cadastro chega no seu e-mail).
+- **Chave própria do Google.** Em **Mais › Meu perfil › Leitura por IA** cada pessoa pode cadastrar a sua chave do Gemini (com um passo a passo para criá-la no Google AI Studio). O app testa a chave ao salvar, guarda-a **cifrada** (só a própria pessoa a usa; ela nunca volta para a tela, só os 4 últimos caracteres) e, com chave própria, **não há limite diário**. O `CAPTURAS_POR_DIA` vale só para quem usa a chave do servidor. Não há cota mensal nem pedido de liberação.
+- **Sem IA, o app continua útil.** Na aba Capturar a foto é guardada como comprovante e o lançamento é feito à mão (a tela explica o motivo). A **importação de fatura em PDF fica indisponível** sem IA, com aviso na tela de Cartões.
+- **Administração:** além do botão de liberar, a lista mostra se a pessoa tem chave própria e quantas leituras do mês saíram da chave do servidor.
+- Novas rotas: `GET /api/ia`, `PUT/DELETE /api/ia/chave`, `POST /api/admin/usuarios/{id}/ia`. Migração `014` (colunas e tabela novas; todos começam desligados). Nova dependência no servidor: `cryptography`.
+
 ## 1.20.0 — 2026-10-03
 - **Administração: uso de IA e média de lançamentos por pessoa.** A lista de pessoas passa a mostrar quantas **leituras por IA** (comprovantes e faturas) cada uma fez, no total e nos últimos 30 dias, e a **média mensal de lançamentos** que ela criou (últimos 3 meses, sem contar recorrências e rendimentos gerados sozinhos). São apenas contagens; continua sem mostrar lançamentos, valores, descrições ou nomes de contas. A contagem de IA inclui o histórico anterior à atualização. Migração `013` (só troca a função de relatório).
 

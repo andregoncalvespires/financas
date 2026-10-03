@@ -85,6 +85,10 @@ class AtualizarValorIn(BaseModel):
     data: Optional[date] = None
 
 
+class ChaveIaIn(BaseModel):
+    chave: str = Field(min_length=20, max_length=200)
+
+
 class SimularIn(BaseModel):
     conta_id: Optional[str] = None                        # sem conta: usa taxa_aa e saldo_inicial_centavos informados
     taxa_aa: Optional[float] = Field(default=None, ge=0, le=100)

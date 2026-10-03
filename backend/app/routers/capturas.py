@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from .. import gemini
+from .. import gemini, ia
 from ..config import settings
 from ..db import sessao
 from ..deps import Usuario, get_db, usuario_atual
@@ -98,23 +98,30 @@ def criar(arquivo: UploadFile = File(...), usuario: Usuario = Depends(usuario_at
     if len(bruto) > MAX_BYTES:
         raise HTTPException(413, "arquivo maior que 12 MB")
     dados, mime, ext = preparar(bruto)
+    uso = ia.modo(usuario)
     with sessao(usuario.id) as cur:
-        n = cur.execute("SELECT count(*) AS n FROM captura WHERE criado_por = %s AND criado_em > now() - interval '24 hours'", (usuario.id,)).fetchone()["n"]
-        if n >= settings.capturas_por_dia:
-            raise HTTPException(429, f"limite de {settings.capturas_por_dia} leituras por dia atingido")
+        if uso["modo"] == "servidor":      # o limite diário protege a chave do servidor; com chave própria não há limite
+            n = cur.execute("SELECT count(*) AS n FROM captura WHERE criado_por = %s AND chave_ia IS DISTINCT FROM 'propria' AND chave_ia IS DISTINCT FROM 'nenhuma' "
+                            "AND criado_em > now() - interval '24 hours'", (usuario.id,)).fetchone()["n"]
+            if n >= settings.capturas_por_dia:
+                raise HTTPException(429, f"limite de {settings.capturas_por_dia} leituras por dia atingido")
         rel = f"anexos/{date.today():%Y}/{uuid.uuid4()}.{ext}"
         destino = Path(settings.dados_dir) / rel
         destino.parent.mkdir(parents=True, exist_ok=True)
         destino.write_bytes(dados)
         anexo = cur.execute("INSERT INTO anexo(criado_por, caminho, mime, sha256, tamanho) VALUES (%s,%s,%s,%s,%s) RETURNING id",
                             (usuario.id, rel, mime, hashlib.sha256(dados).hexdigest(), len(dados))).fetchone()
-        cap = cur.execute("INSERT INTO captura(criado_por, anexo_id) VALUES (%s,%s) RETURNING id", (usuario.id, anexo["id"])).fetchone()
+        cap = cur.execute("INSERT INTO captura(criado_por, anexo_id, chave_ia) VALUES (%s,%s,%s) RETURNING id",
+                          (usuario.id, anexo["id"], {"servidor": "servidor", "propria": "propria"}.get(uso["modo"], "nenhuma"))).fetchone()
     # chamada externa fora da transação do banco
-    try:
-        extracao, meta = gemini.extrair(dados, mime)
-        erro = None
-    except gemini.GeminiErro as e:
-        extracao, meta, erro = None, {}, str(e)
+    if uso["modo"] == "nenhum":            # sem IA: só guarda a foto e a pessoa lança manualmente
+        extracao, meta, erro = None, {}, "leitura por IA não ativa para esta pessoa"
+    else:
+        try:
+            extracao, meta = gemini.extrair(dados, mime, uso["chave"])
+            erro = None
+        except gemini.GeminiErro as e:
+            extracao, meta, erro = None, {}, str(e)
     with sessao(usuario.id) as cur:
         if erro:
             cur.execute("UPDATE captura SET status = 'erro', erro = %s WHERE id = %s", (erro[:500], cap["id"]))

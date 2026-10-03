@@ -22,13 +22,15 @@ export async function cartoes(raiz, ctx) {
 function cartaoDono(k, recarregar) {
   const corpo = h('div', { class: 'faturas' });
   const ativos = k.plasticos.filter(p => p.ativo).length;
+  const semIa = !!(estado.eu.ia && estado.eu.ia.modo === 'nenhum');
   const det = h('details', { class: 'cartao' },
     h('summary', null, h('div', null, h('b', null, k.nome), k.inativo ? h('small', { class: 'selo aviso' }, 'inativa') : null,
         h('small', { class: 'selo' }, `fecha dia ${k.dia_fechamento} · vence dia ${k.dia_vencimento}`)),
       h('small', null, `${ativos} cartão(ões)`)),
     !k.conta_pagamento_id ? h('p', { class: 'alertas' }, 'Sem conta de pagamento definida: as faturas desta conta de cartão não entram no "disponível de verdade". Toque em Editar.') : null,
     h('div', { class: 'linha-botoes' }, h('button', { class: 'btn sec', onclick: () => editarCartao(k, recarregar) }, 'Editar conta de cartão'),
-      h('button', { class: 'btn sec', onclick: () => importarFatura(k, recarregar) }, 'Importar fatura (PDF)')),
+      h('button', { class: 'btn sec', disabled: semIa, onclick: () => importarFatura(k, recarregar) }, 'Importar fatura (PDF)')),
+    semIa ? h('p', { class: 'dica' }, 'A importação de fatura em PDF precisa da leitura por IA, que não está ativa para você. Peça ao administrador ou cadastre a sua chave em ☰ › Meu perfil.') : null,
     h('h3', null, 'Cartões'),
     k.plasticos.map(p => linhaPlastico(k, p, recarregar)),
     h('button', { class: 'btn link', onclick: () => novoPlastico(k, recarregar) }, '+ Adicionar cartão (adicional)'),

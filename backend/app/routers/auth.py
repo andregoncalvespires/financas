@@ -4,7 +4,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 
-from .. import mailer
+from .. import ia, mailer
 from ..config import settings
 from ..db import sessao
 from ..deps import COOKIE, Usuario, eh_admin, get_db, usuario_atual
@@ -69,7 +69,7 @@ def sair(response: Response, usuario: Usuario = Depends(usuario_atual)):
 @router.get("/eu")
 def eu(cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     r = cur.execute("SELECT id, email::text AS email, nome, config FROM usuario WHERE id = %s", (usuario.id,)).fetchone()
-    return {**r, "admin": eh_admin(usuario)}
+    return {**r, "admin": eh_admin(usuario), "ia": ia.publico(ia.modo(usuario))}
 
 
 @router.patch("/eu")
@@ -79,7 +79,7 @@ def atualizar_eu(body: PerfilIn, cur=Depends(get_db), usuario: Usuario = Depends
     if body.config is not None:
         cur.execute("UPDATE usuario SET config = config || %s::jsonb WHERE id = %s", (json.dumps(body.config), usuario.id))
     r = cur.execute("SELECT id, email::text AS email, nome, config FROM usuario WHERE id = %s", (usuario.id,)).fetchone()
-    return {**r, "admin": eh_admin(usuario)}
+    return {**r, "admin": eh_admin(usuario), "ia": ia.publico(ia.modo(usuario))}
 
 
 @router.get("/dispositivos")

@@ -90,7 +90,7 @@ details.cartao[open] > summary::after { content: '▴'; }
 .icone { background: none; border: 0; color: var(--suave); font-size: 1.5rem; cursor: pointer; padding: 6px 10px; }
 .form { display: grid; gap: 12px; }
 .campo { display: grid; gap: 4px; } .campo > span { font-size: .85rem; color: var(--suave); font-weight: 600; } .campo small { font-size: .78rem; }
-input[type=text], input[type=email], input[type=number], input[type=date], input[type=search], select {
+input[type=text], input[type=email], input[type=number], input[type=date], input[type=search], input[type=password], select {
   width: 100%; font: inherit; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--borda); background: var(--surf); color: var(--texto); min-height: 44px; }
 input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
 .valor-grande { font-size: 1.6rem; font-weight: 700; text-align: right; }

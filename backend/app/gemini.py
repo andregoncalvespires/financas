@@ -86,12 +86,13 @@ def _mock() -> dict:
     }
 
 
-def extrair(dados: bytes, mime: str) -> tuple[Extracao, dict]:
+def extrair(dados: bytes, mime: str, chave: str | None = None) -> tuple[Extracao, dict]:
     """Retorna (extração validada, metadados de uso)."""
     if settings.gemini_mock:
         return Extracao(**_mock()), {"modelo": "mock"}
-    if not settings.gemini_api_key:
-        raise GeminiErro("GEMINI_API_KEY não configurada no servidor")
+    chave = chave or settings.gemini_api_key
+    if not chave:
+        raise GeminiErro("leitura por IA não configurada")
     corpo = {
         "contents": [{"parts": [
             {"text": PROMPT.format(ano=date.today().year, categorias=catalogo_para_prompt())},
@@ -103,7 +104,7 @@ def extrair(dados: bytes, mime: str) -> tuple[Extracao, dict]:
     ultimo = ""
     for tentativa in range(3):
         try:
-            r = httpx.post(url, json=corpo, headers={"x-goog-api-key": settings.gemini_api_key}, timeout=60)
+            r = httpx.post(url, json=corpo, headers={"x-goog-api-key": chave}, timeout=60)
         except httpx.HTTPError as e:
             ultimo = f"falha de rede: {e.__class__.__name__}"
         else:
@@ -175,12 +176,13 @@ Categorias (código = Grupo > Nome):
 MOCK_FATURA: dict | None = None   # os testes sobrescrevem
 
 
-def extrair_fatura(dados: bytes) -> tuple[dict, dict]:
+def extrair_fatura(dados: bytes, chave: str | None = None) -> tuple[dict, dict]:
     """Lê uma fatura em PDF. Retorna (dados brutos validados, metadados de uso)."""
     if settings.gemini_mock:
         return dict(MOCK_FATURA or {"vencimento": date.today().isoformat(), "fechamento": date.today().isoformat(), "total_fatura": 0, "linhas": []}), {"modelo": "mock"}
-    if not settings.gemini_api_key:
-        raise GeminiErro("GEMINI_API_KEY não configurada no servidor")
+    chave = chave or settings.gemini_api_key
+    if not chave:
+        raise GeminiErro("leitura por IA não configurada")
     corpo = {
         "contents": [{"parts": [
             {"text": PROMPT_FATURA.replace("{categorias}", catalogo_para_prompt())},
@@ -192,7 +194,7 @@ def extrair_fatura(dados: bytes) -> tuple[dict, dict]:
     ultimo = ""
     for tentativa in range(3):
         try:
-            r = httpx.post(url, json=corpo, headers={"x-goog-api-key": settings.gemini_api_key}, timeout=180)
+            r = httpx.post(url, json=corpo, headers={"x-goog-api-key": chave}, timeout=180)
         except httpx.HTTPError as e:
             ultimo = f"falha de rede: {e.__class__.__name__}"
         else:

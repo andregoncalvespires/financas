@@ -59,6 +59,12 @@ def cliente(app, x_fin=True) -> TestClient:
     return TestClient(app, headers=h)
 
 
+def liberar_ia(p, liberada=True):
+    """Liga/desliga a IA do servidor para uma pessoa de teste (o administrador faz isso pela API)."""
+    with psycopg.connect(OWNER, autocommit=True) as c:
+        c.execute("UPDATE usuario SET ia_servidor = %s WHERE id = %s", (liberada, p.id))
+
+
 def _login(app, email: str) -> Pessoa:
     c = cliente(app)
     assert c.post("/api/auth/solicitar", json={"email": email}).status_code == 202
@@ -72,8 +78,11 @@ def _login(app, email: str) -> Pessoa:
 
 @pytest.fixture()
 def nova_pessoa(app_client):
-    def criar(prefixo="u") -> Pessoa:
-        return _login(app_client, f"{prefixo}-{uuid.uuid4().hex[:8]}@teste.com")
+    def criar(prefixo="u", ia=True) -> Pessoa:
+        p = _login(app_client, f"{prefixo}-{uuid.uuid4().hex[:8]}@teste.com")
+        if ia:
+            liberar_ia(p)                       # a maioria dos testes usa a leitura por IA; os de liberação pedem ia=False
+        return p
     return criar
 
 

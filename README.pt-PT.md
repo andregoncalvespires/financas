@@ -118,7 +118,13 @@ Opcional e só de leitura. Preencha `ADMIN_EMAIL: "o@seu.email"` no `docker-comp
 <details>
 <summary><b>Leitura de comprovativos com IA (Google Gemini)</b></summary>
 
-Totalmente opcional: sem chave tudo funciona, apenas a leitura automática fica desligada e os movimentos são registados manualmente.
+Totalmente opcional: sem chave tudo funciona, apenas a leitura automática fica desligada e os movimentos são registados manualmente (a fotografia do comprovativo continua a ser guardada; a importação de fatura em PDF, que depende da IA, fica indisponível).
+
+**Quem pode usar a IA:** cada pessoa começa **sem** a leitura por IA. Há dois caminhos, e nenhum exige mexer outra vez no `docker-compose.yml`:
+- **IA do servidor** (a `GEMINI_API_KEY` abaixo): o administrador (`ADMIN_EMAIL`) liga-a pessoa a pessoa em **Mais › Administração**. O administrador pode sempre usá-la. O limite `CAPTURAS_POR_DIA` vale só para esta chave.
+- **Chave própria:** a pessoa regista a sua chave da Google em **Mais › O meu perfil › Leitura por IA** (a aplicação testa a chave ao guardar). Fica guardada **cifrada**, só a própria pessoa a usa e nunca volta para o ecrã. Com chave própria **não há limite diário**, e o custo é da pessoa.
+
+A área de administração mostra, por pessoa, as leituras por IA (total, últimos 30 dias e quantas saíram da chave do servidor), se há chave própria e o botão de ligar ou desligar a IA do servidor. Ao atualizar para esta versão, **todos (menos o administrador) ficam com a IA do servidor desligada**; ligue a quem quiser.
 
 1. Gere uma chave em <https://aistudio.google.com/apikey>.
 2. **Ative a faturação** no projeto Google dessa chave. Segundo os termos da Google, o conteúdo enviado por uma chave sem faturação (nível gratuito) pode ser usado para melhorar os produtos deles; com a faturação ativa, não. Consulte os termos atuais antes de usar com dados reais.
@@ -126,7 +132,7 @@ Totalmente opcional: sem chave tudo funciona, apenas a leitura automática fica 
 
 **O que é enviado à Google:** apenas a imagem ou o PDF do comprovativo (ou da fatura do cartão, já aberta no seu servidor; a palavra-passe não é enviada nem guardada) e a lista de categorias da aplicação, para a IA escolher uma. Saldos, contas, nomes e restantes movimentos **não** são enviados. A chave fica apenas no servidor.
 
-**Como funciona:** a IA devolve uma *sugestão*; confere, corrige se necessário e só depois guarda. `CAPTURAS_POR_DIA` (predefinição 30) limita a utilização por pessoa e controla o custo.
+**Como funciona:** a IA devolve uma *sugestão*; confere, corrige se necessário e só depois guarda. `CAPTURAS_POR_DIA` (predefinição 30) limita a utilização diária de quem usa a chave do servidor e controla o custo.
 </details>
 
 <details>

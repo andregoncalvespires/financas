@@ -87,7 +87,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 - **Início**: resumo por grupos (disponível, benefícios, investimentos, outros e total) e **próximos eventos** (contas a pagar e receber, faturas e transferências planejadas), com botão para confirmar o que já aconteceu.
 
 **Leitura de comprovantes com IA (opcional)**
-- Tire uma foto de cupom, nota, comprovante de Pix ou fatura e o app sugere valor, data, estabelecimento e categoria. Você sempre revisa antes de salvar.
+- Tire uma foto de cupom, nota, comprovante de Pix ou fatura e o app sugere valor, data, estabelecimento e categoria. Você sempre revisa antes de salvar. A leitura por IA é **liberada por pessoa** pelo administrador ou funciona com a **chave própria** de cada um (veja [Leitura de comprovantes com IA](#configurações-opcionais)).
 
 **Várias pessoas, com privacidade**
 - Cada pessoa vê apenas os próprios dados. Você compartilha **conta por conta** (ou um cartão) com quem quiser, como leitor, editor ou gestor, e retira o acesso quando quiser.
@@ -118,7 +118,13 @@ Opcional e somente leitura. Preencha `ADMIN_EMAIL: "seu@email.com"` no `docker-c
 <details>
 <summary><b>Leitura de comprovantes com IA (Google Gemini)</b></summary>
 
-Totalmente opcional: sem chave tudo funciona, só a leitura automática fica desligada e você lança manualmente.
+Totalmente opcional: sem chave tudo funciona, só a leitura automática fica desligada e você lança manualmente (a foto do comprovante continua sendo guardada; a importação de fatura em PDF, que depende da IA, fica indisponível).
+
+**Quem pode usar a IA:** cada pessoa começa **sem** a leitura por IA. Há dois caminhos, e ambos independem de você mexer no `docker-compose.yml` de novo:
+- **IA do servidor** (a `GEMINI_API_KEY` abaixo): o administrador (`ADMIN_EMAIL`) a liga pessoa por pessoa em **Mais › Administração**. O administrador sempre pode usá-la. O limite `CAPTURAS_POR_DIA` vale só para essa chave.
+- **Chave própria:** a pessoa cadastra a sua chave do Google em **Mais › Meu perfil › Leitura por IA** (o app testa a chave ao salvar). Ela fica guardada **cifrada**, só a própria pessoa a usa e ela nunca volta para a tela. Com chave própria **não há limite diário**, e o custo é da pessoa.
+
+A área de administração mostra, por pessoa, as leituras por IA (total, últimos 30 dias e quantas saíram da chave do servidor), se há chave própria e o botão de liberar ou desligar a IA do servidor. Ao atualizar para esta versão, **todo mundo (menos o administrador) fica com a IA do servidor desligada**; libere quem quiser.
 
 1. Gere uma chave em <https://aistudio.google.com/apikey>.
 2. **Ative o faturamento** no projeto Google dessa chave. Pelos termos da Google, o conteúdo enviado por uma chave sem faturamento (nível gratuito) pode ser usado para melhorar os produtos deles; com faturamento ativo, não. Confira os termos atuais antes de usar com dados reais.
@@ -126,7 +132,7 @@ Totalmente opcional: sem chave tudo funciona, só a leitura automática fica des
 
 **O que é enviado ao Google:** apenas a imagem ou o PDF do comprovante (ou da fatura do cartão, já aberto no seu servidor; a senha não é enviada nem guardada) e a lista de categorias do app, para a IA escolher uma. Saldos, contas, nomes e demais lançamentos **não** são enviados. A chave fica só no servidor.
 
-**Como funciona:** a IA devolve uma *sugestão*; você confere, corrige se precisar e só então salva. `CAPTURAS_POR_DIA` (padrão 30) limita o uso por pessoa e controla o custo.
+**Como funciona:** a IA devolve uma *sugestão*; você confere, corrige se precisar e só então salva. `CAPTURAS_POR_DIA` (padrão 30) limita o uso diário de quem usa a chave do servidor e controla o custo.
 </details>
 
 <details>

@@ -118,7 +118,13 @@ Optional and read-only. Fill in `ADMIN_EMAIL: "you@example.com"` in `docker-comp
 <details>
 <summary><b>Receipt reading with AI (Google Gemini)</b></summary>
 
-Entirely optional: without a key everything works, only automatic reading is off and you enter transactions by hand.
+Entirely optional: without a key everything works, only automatic reading is off and you enter transactions by hand (the receipt photo is still saved; importing a statement PDF, which depends on AI, is unavailable).
+
+**Who can use AI:** everyone starts **without** AI reading. There are two ways, and neither needs another edit to `docker-compose.yml`:
+- **Server AI** (the `GEMINI_API_KEY` below): the administrator (`ADMIN_EMAIL`) turns it on person by person in **More › Administration**. The administrator can always use it. The `CAPTURAS_POR_DIA` limit applies only to this key.
+- **Own key:** a person adds their own Google key in **More › My profile › AI reading** (the app tests the key when saving). It is stored **encrypted**, only that person uses it and it is never sent back to the screen. With an own key there is **no daily limit**, and the cost is theirs.
+
+The administration area shows, per person, AI readings (total, last 30 days and how many used the server key), whether there is an own key, and the button to turn server AI on or off. When you update to this version, **everyone (except the administrator) has server AI turned off**; turn it on for whoever you want.
 
 1. Create a key at <https://aistudio.google.com/apikey>.
 2. **Enable billing** on the Google project that owns the key. Under Google's terms, content sent with a key that has no billing (the free tier) may be used to improve their products; with billing enabled, it is not. Check the current terms before using real data.
@@ -126,7 +132,7 @@ Entirely optional: without a key everything works, only automatic reading is off
 
 **What is sent to Google:** only the receipt's image or PDF (or the card statement, already opened on your server; the password is neither sent nor stored) and the app's list of categories, so the AI can pick one. Balances, accounts, names and your other transactions are **not** sent. The key stays on the server only.
 
-**How it works:** the AI returns a *suggestion*; you check it, fix it if needed and only then save it. `CAPTURAS_POR_DIA` (default 30) limits use per person and controls cost.
+**How it works:** the AI returns a *suggestion*; you check it, fix it if needed and only then save it. `CAPTURAS_POR_DIA` (default 30) limits the daily use of people on the server key and controls cost.
 </details>
 
 <details>

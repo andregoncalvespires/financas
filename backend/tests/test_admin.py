@@ -28,7 +28,8 @@ def test_so_o_admin_ve_a_lista_com_contagens_dos_donos(nova_pessoa, monkeypatch)
     assert u["ultimo_acesso"] and u["criado_em"]
     assert por_email[adm.email]["contas"] == 0
     assert set(u) == {"id", "nome", "email", "criado_em", "ultimo_acesso", "contas", "cartoes",
-                      "leituras_ia", "leituras_ia_30d", "lancamentos_por_mes"}   # só contagens: nada de lançamentos ou valores
+                      "leituras_ia", "leituras_ia_30d", "lancamentos_por_mes", "ia_servidor", "chave_propria",
+                      "leituras_servidor_30d"}   # só contagens: nada de lançamentos ou valores
 
 
 def test_conta_compartilhada_nao_conta_para_quem_so_participa(nova_pessoa, monkeypatch):

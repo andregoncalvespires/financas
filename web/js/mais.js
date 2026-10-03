@@ -444,10 +444,33 @@ async function dispositivos(raiz, ctx) {
       d.atual ? null : h('button', { class: 'btn link perigo', onclick: acao(async () => { await DEL(`/api/dispositivos/${d.id}`); recarregar(); }) }, 'Revogar'))));
 }
 
+// Leitura por IA: situação atual e cadastro da chave própria do Gemini (a chave nunca volta do servidor; só mostramos o final)
+function secaoIa(recarregar) {
+  const ia = estado.eu.ia || { modo: 'nenhum' };
+  const texto = ia.modo === 'propria' ? `Usando a sua chave do Google (termina em ••••${ia.final}).`
+    : ia.modo === 'servidor' ? 'Usando a leitura por IA do servidor, liberada pelo administrador. Se preferir, cadastre a sua chave abaixo.'
+    : 'A leitura por IA não está ativa para você: fotos de comprovantes e a importação de fatura em PDF ficam sem leitura automática (você ainda pode lançar tudo à mão). Para ativar, peça ao administrador ou cadastre a sua chave do Google abaixo.';
+  const chave = h('input', { type: 'password', autocomplete: 'off', spellcheck: 'false', placeholder: ia.modo === 'propria' ? `••••••••••••${ia.final}` : 'Cole aqui a chave (AIza…)' });
+  return [h('h2', null, 'Leitura por IA'), h('p', { class: ia.modo === 'nenhum' ? 'dica' : 'selo' }, texto),
+    campo('Minha chave do Gemini (Google AI Studio)', chave, 'Fica guardada cifrada no servidor, só você a usa e ela nunca volta para a tela.'),
+    h('div', { class: 'linha-botoes' },
+      h('button', { class: 'btn', onclick: acao(async () => {
+        const v = chave.value.trim(); if (v.length < 20) throw new Error('Cole a chave inteira.');
+        await PUT_('/api/ia/chave', { chave: v }); estado.eu = await GET('/api/eu'); aviso('Chave salva'); recarregar();
+      }) }, ia.modo === 'propria' ? 'Trocar chave' : 'Salvar chave'),
+      ia.modo === 'propria' ? h('button', { class: 'btn sec', onclick: acao(async () => { await DEL('/api/ia/chave'); estado.eu = await GET('/api/eu'); aviso('Chave removida'); recarregar(); }) }, 'Remover chave') : null),
+    h('details', { class: 'cartao' }, h('summary', null, 'Como criar a chave'),
+      h('ol', null, h('li', null, 'Abra aistudio.google.com/apikey e entre com a sua conta Google.'),
+        h('li', null, 'Toque em "Create API key" (criar chave de API) e confirme.'),
+        h('li', null, 'Copie a chave que aparece (começa com "AIza") e cole no campo acima.')),
+      h('p', { class: 'dica' }, 'Atenção: pelos termos do Google, no plano gratuito o conteúdo enviado pode ser usado para melhorar os produtos deles e lido por revisores. Não envie comprovantes com dados sensíveis. No plano pago isso não acontece. Quem paga pela chave é você.'))];
+}
+
 async function perfil(raiz, ctx) {
   const nome = h('input', { type: 'text', value: estado.eu.nome, maxlength: 80 });
   limpar(raiz).append(voltar('Meu perfil'), campo('Nome', nome), campo('E-mail', h('input', { type: 'text', value: estado.eu.email, disabled: true })),
     h('button', { class: 'btn', onclick: acao(async () => { estado.eu = await PATCH('/api/eu', { nome: nome.value.trim() }); aviso('Perfil atualizado'); }) }, 'Salvar'),
+    secaoIa(() => perfil(raiz, ctx)),
     h('h2', null, 'Seus dados'),
     h('a', { class: 'btn sec', href: '/api/exportar/completo', download: '' }, 'Exportar tudo (planilha + comprovantes)'),
     h('a', { class: 'btn link perigo', href: '#/mais/excluirConta' }, 'Excluir minha conta e todos os meus dados'));
@@ -707,12 +730,16 @@ async function administracao(raiz, ctx) {
   const us = await GET('/api/admin/usuarios');
   const quando = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'nunca';
   limpar(raiz).append(voltar('Administração'),
-    h('p', { class: 'dica' }, `${us.length} pessoa(s) cadastrada(s). Contas e cartões são os ativos de que a pessoa é dona. O último acesso é aproximado (atualiza no máximo a cada hora). "IA" são as leituras por IA (comprovantes e faturas). "Lançamentos/mês" é a média dos últimos 3 meses de lançamentos que a pessoa criou, sem contar os gerados sozinhos (recorrências e rendimentos). São só contagens: o conteúdo e os valores não aparecem aqui.`),
+    h('p', { class: 'dica' }, `${us.length} pessoa(s) cadastrada(s). Contas e cartões são os ativos de que a pessoa é dona. O último acesso é aproximado (atualiza no máximo a cada hora). "IA" são as leituras por IA (comprovantes e faturas). "Lançamentos/mês" é a média dos últimos 3 meses de lançamentos que a pessoa criou, sem contar os gerados sozinhos (recorrências e rendimentos). São só contagens: o conteúdo e os valores não aparecem aqui. O botão de cada pessoa liga ou desliga a leitura por IA com a chave do servidor; quem cadastrou chave própria lê por ela, sem limite.`),
     us.map(u => h('div', { class: 'linha item sem-clique' },
       h('div', { class: 'corpo' }, h('b', null, u.nome, u.id === estado.eu.id ? h('small', { class: 'selo' }, 'você') : null),
         h('small', null, u.email),
         h('small', null, `cadastro ${dataLonga(u.criado_em)} · último acesso ${quando(u.ultimo_acesso)}`),
-        h('small', null, `IA: ${u.leituras_ia} no total, ${u.leituras_ia_30d} em 30 dias · ${String(u.lancamentos_por_mes).replace('.', ',')} lançamentos/mês`)),
+        h('small', null, `IA: ${u.leituras_ia} no total, ${u.leituras_ia_30d} em 30 dias (${u.leituras_servidor_30d} no servidor) · ${String(u.lancamentos_por_mes).replace('.', ',')} lançamentos/mês`),
+        h('small', null, u.chave_propria ? 'tem chave própria do Google' : 'sem chave própria'),
+        h('button', { class: u.ia_servidor || u.id === estado.eu.id ? 'btn mini-btn' : 'btn mini-btn sec', disabled: u.id === estado.eu.id,
+          onclick: acao(async () => { await POST(`/api/admin/usuarios/${u.id}/ia`, { liberada: !u.ia_servidor }); administracao(raiz, ctx); }) },
+          u.id === estado.eu.id ? 'IA do servidor: sempre' : u.ia_servidor ? 'IA do servidor: liberada (desligar)' : 'IA do servidor: desligada (liberar)')),
       h('small', { class: 'centro' }, `${u.contas} conta(s)`, h('br'), `${u.cartoes} cartão(ões)`))));
 }
 
