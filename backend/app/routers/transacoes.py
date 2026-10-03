@@ -139,11 +139,13 @@ def alterar(tid: str, body: TransacaoPatch, cur=Depends(get_db), usuario: Usuari
     atualizar(cur, "transacao", tid, campos)
     if body.propagar and t["recorrencia_id"]:
         # a mudança vale também para a recorrência e para os previstos dos meses seguintes (este lançamento já foi ajustado acima)
-        proximo = add_months(t["data_competencia"].replace(day=1), 1).strftime("%Y-%m")
+        desloc = (cur.execute("SELECT CASE WHEN plastico_id IS NULL THEN competencia_mes ELSE 0 END AS d FROM recorrencia WHERE id = %s", (t["recorrencia_id"],)).fetchone() or {"d": 0})["d"]
+        proximo = add_months(t["data_competencia"].replace(day=1), 1 - desloc).strftime("%Y-%m")     # mês seguinte da OCORRÊNCIA
+        dia_ref = (body.data_caixa or body.data_competencia) if desloc else body.data_competencia      # com deslocamento, o dia vem do caixa
         alterar_recorrencia(str(t["recorrencia_id"]), RecorrenciaPatch(
             valor_centavos=body.valor_centavos, categoria_id=body.categoria_id, favorecido_id=body.favorecido_id,
             favorecido_nome=body.favorecido_nome, descricao=body.descricao, forma_pagamento=body.forma_pagamento,
-            dia_mes=body.data_competencia.day if body.data_competencia else None, a_partir_de=proximo), cur, usuario)
+            dia_mes=dia_ref.day if dia_ref else None, a_partir_de=proximo), cur, usuario)
     return cur.execute(SQL_TX + " WHERE t.id = %s", (tid,)).fetchone()
 
 
@@ -207,18 +209,20 @@ def desfazer(tid: str, cur=Depends(get_db)):
 @router.delete("/transacoes/{tid}")
 def excluir(tid: str, todo_parcelamento: bool = False, proximos: bool = False, cur=Depends(get_db)):
     t = cur.execute("SELECT id, tipo, transferencia_id, parcelamento_id, recorrencia_id, data_competencia, "
+                    "(SELECT CASE WHEN plastico_id IS NULL THEN competencia_mes ELSE 0 END FROM recorrencia WHERE id = transacao.recorrencia_id) AS desloc, "
                     "(SELECT cartao_id FROM plastico WHERE id = transacao.plastico_id) AS cartao_id FROM transacao WHERE id = %s", (tid,)).fetchone()
     if not t:
         raise HTTPException(404, "lançamento não encontrado")
     extra = {}
     if proximos and t["recorrencia_id"]:
         # "este e os próximos": a recorrência termina no mês anterior e os previstos daqui em diante saem (confirmados nunca)
-        mes_ini = t["data_competencia"].replace(day=1)
+        mes_comp = t["data_competencia"].replace(day=1)                  # início do mês de competência deste lançamento
+        mes_ini = add_months(mes_comp, -(t["desloc"] or 0))              # mês da ocorrência (o que a recorrência conta)
         novo_fim = mes_ini - timedelta(days=1)
         cur.execute("UPDATE recorrencia SET fim = LEAST(COALESCE(fim, %s), %s) WHERE id = %s", (novo_fim, novo_fim, t["recorrencia_id"]))
         extra["proximos_removidos"] = cur.execute(
             "DELETE FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s AND id <> %s",
-            (t["recorrencia_id"], mes_ini, tid)).rowcount
+            (t["recorrencia_id"], mes_comp, tid)).rowcount
     r = {**_excluir(tid, todo_parcelamento, cur, t), **extra}
     if t["cartao_id"]:      # a fatura que ficou sem compras não deve sobrar aberta e zerada
         cur.execute("SELECT limpar_faturas_vazias(%s)", (t["cartao_id"],))
@@ -228,7 +232,7 @@ def excluir(tid: str, todo_parcelamento: bool = False, proximos: bool = False, c
 def _excluir(tid, todo_parcelamento, cur, t):
     if t["recorrencia_id"]:      # excluir uma ocorrência = pular aquele mês; sem isso a geração automática a recriaria
         cur.execute("INSERT INTO recorrencia_pulada(recorrencia_id, mes, criado_por) VALUES (%s, date_trunc('month', %s::date)::date, app_uid()) ON CONFLICT DO NOTHING",
-                    (t["recorrencia_id"], t["data_competencia"]))
+                    (t["recorrencia_id"], add_months(t["data_competencia"].replace(day=1), -(t.get("desloc") or 0))))
     if t["transferencia_id"]:
         n = cur.execute("DELETE FROM transacao WHERE transferencia_id = %s", (t["transferencia_id"],)).rowcount
         if n != 2:
@@ -303,10 +307,10 @@ def criar_recorrencia(body: RecorrenciaIn, cur=Depends(get_db), usuario: Usuario
     dono = dono_do_alvo(cur, body.conta_id, body.plastico_id)
     fav, cat = resolver_favorecido_categoria(cur, dono, body.favorecido_id, body.favorecido_nome, body.categoria_id)
     return cur.execute(
-        """INSERT INTO recorrencia(criado_por, conta_id, plastico_id, tipo, valor_centavos, dia_mes, forma_pagamento, categoria_id, favorecido_id, descricao, inicio, fim)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s, current_date),%s) RETURNING *""",
+        """INSERT INTO recorrencia(criado_por, conta_id, plastico_id, tipo, valor_centavos, dia_mes, forma_pagamento, categoria_id, favorecido_id, descricao, inicio, fim, competencia_mes)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s, current_date),%s,%s) RETURNING *""",
         (usuario.id, body.conta_id, body.plastico_id, body.tipo, body.valor_centavos, body.dia_mes, body.forma_pagamento, cat, fav,
-         body.descricao, body.inicio, body.fim)).fetchone()
+         body.descricao, body.inicio, body.fim, 0 if body.plastico_id else body.competencia_mes)).fetchone()
 
 
 @router.patch("/recorrencias/{rid}")
@@ -317,7 +321,9 @@ def alterar_recorrencia(rid: str, body: RecorrenciaPatch, cur=Depends(get_db), u
     if not r:
         raise HTTPException(404, "recorrência não encontrada")
     dono = dono_do_alvo(cur, r["conta_id"], r["plastico_id"])
-    campos: dict = {k: getattr(body, k) for k in ("valor_centavos", "dia_mes", "descricao", "forma_pagamento", "ativa")}
+    campos: dict = {k: getattr(body, k) for k in ("valor_centavos", "dia_mes", "descricao", "forma_pagamento", "ativa", "competencia_mes")}
+    if r["plastico_id"]:
+        campos.pop("competencia_mes")             # compra em cartão não desloca a competência
     if body.limpar_fim:
         campos["fim"] = None
     elif body.fim is not None:
@@ -332,9 +338,10 @@ def alterar_recorrencia(rid: str, body: RecorrenciaPatch, cur=Depends(get_db), u
         campos.pop("forma_pagamento")            # compra em cartão é sempre "cartão"
     nova = atualizar(cur, "recorrencia", rid, campos, nulos={"fim"} if body.limpar_fim else frozenset())
     ini = date.fromisoformat(body.a_partir_de + "-01") if body.a_partir_de else date.today().replace(day=1)
-    meses = {m["mes"] for m in cur.execute(
-        "SELECT DISTINCT date_trunc('month', data_competencia)::date AS mes FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (rid, ini)).fetchall()}
-    removidos = cur.execute("DELETE FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (rid, ini)).rowcount
+    ini_comp = add_months(ini, r["competencia_mes"])      # os previstos existentes foram gerados com o deslocamento ANTERIOR
+    meses = {add_months(m["mes"], -r["competencia_mes"]) for m in cur.execute(
+        "SELECT DISTINCT date_trunc('month', data_competencia)::date AS mes FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (rid, ini_comp)).fetchall()}
+    removidos = cur.execute("DELETE FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (rid, ini_comp)).rowcount
     refeitos = 0
     if nova["ativa"]:
         meses |= {ini}                    # refaz os meses que existiam e o mês de partida
@@ -418,11 +425,15 @@ def _gerar_mes(mes: str, cur, usuario) -> int:
         data = date(ini.year, ini.month, min(r["dia_mes"], fim.day))
         if data < r["inicio"] or (r["fim"] and data > r["fim"]):
             continue
-        if cur.execute("SELECT 1 FROM transacao WHERE recorrencia_id = %s AND data_competencia BETWEEN %s AND %s", (r["id"], ini, fim)).fetchone():
+        desloc = 0 if r["plastico_id"] else r["competencia_mes"]
+        comp_ini = add_months(ini, desloc)                                # mês de competência desta ocorrência
+        comp_fim = mes_intervalo(comp_ini.strftime("%Y-%m"))[1]
+        if cur.execute("SELECT 1 FROM transacao WHERE recorrencia_id = %s AND data_competencia BETWEEN %s AND %s", (r["id"], comp_ini, comp_fim)).fetchone():
             continue
         if cur.execute("SELECT 1 FROM recorrencia_pulada WHERE recorrencia_id = %s AND mes = %s", (r["id"], ini)).fetchone():
             continue
-        b = TransacaoIn(tipo=r["tipo"], valor_centavos=r["valor_centavos"], data_competencia=data, conta_id=r["conta_id"],
+        b = TransacaoIn(tipo=r["tipo"], valor_centavos=r["valor_centavos"], data_competencia=comp_ini if desloc else data,
+                        data_caixa=data if desloc else None, conta_id=r["conta_id"],
                         plastico_id=r["plastico_id"], categoria_id=r["categoria_id"], favorecido_id=r["favorecido_id"],
                         descricao=r["descricao"], forma_pagamento=r["forma_pagamento"], estado="previsto", origem="recorrencia")
         try:

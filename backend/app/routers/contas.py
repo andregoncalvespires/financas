@@ -7,7 +7,7 @@ from .. import mailer
 from ..config import settings
 from ..deps import Usuario, get_db, usuario_atual
 from ..schemas import ContaIn, ContaPatch, ConviteContaIn, GerarRecorrenciasIn, RecargaIn, TipoContaIn, TipoContaPatch
-from ..servicos import atualizar, limitar_convites, norm
+from ..servicos import add_months, atualizar, limitar_convites, norm
 from .transacoes import gerar as gerar_recorrencias
 
 router = APIRouter(prefix="/api")
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api")
 SQL_CONTAS = """
 SELECT c.id, c.nome, c.tipo, c.tipo_conta_id, tc.nome AS tipo_nome, c.dono_id, u.nome AS dono_nome, c.inativa, c.saldo_inicial_centavos, c.data_saldo_inicial,
        papel_conta(c.id) AS papel,
-       r.valor_centavos AS recarga_valor_centavos, r.dia_mes AS recarga_dia, COALESCE(r.ativa, false) AS recarga_ativa,
+       r.valor_centavos AS recarga_valor_centavos, r.dia_mes AS recarga_dia, COALESCE(r.competencia_mes, 0) AS recarga_competencia_mes, COALESCE(r.ativa, false) AS recarga_ativa,
        (c.saldo_inicial_centavos + COALESCE((SELECT SUM(t.valor_centavos) FROM transacao t
           WHERE t.conta_id = c.id AND t.estado IN ('confirmado','conciliado') AND t.data_caixa >= c.data_saldo_inicial), 0))::bigint AS saldo_atual
 FROM conta c JOIN usuario u ON u.id = c.dono_id
@@ -100,7 +100,7 @@ def _tipo_valido(cur, tipo_conta_id, dono_id):
     return t
 
 
-def aplicar_recarga(cur, usuario, cid, valor, dia, ativa):
+def aplicar_recarga(cur, usuario, cid, valor, dia, ativa, competencia_mes=0):
     """Mantém a recorrência de receita que credita o benefício todo mês (valor, dia, ativa).
     Mudar valor/dia vale dos previstos do mês em diante; o que já foi confirmado nunca é alterado."""
     c = cur.execute("SELECT nome, recarga_recorrencia_id FROM conta WHERE id = %s", (cid,)).fetchone()
@@ -111,19 +111,20 @@ def aplicar_recarga(cur, usuario, cid, valor, dia, ativa):
         if not ativa:
             return
         rid = cur.execute(
-            """INSERT INTO recorrencia(criado_por, conta_id, tipo, valor_centavos, dia_mes, descricao, inicio)
-               VALUES (%s,%s,'receita',%s,%s,%s,%s) RETURNING id""", (usuario.id, cid, valor, dia, f"Recarga {c['nome']}", hoje)).fetchone()["id"]
+            """INSERT INTO recorrencia(criado_por, conta_id, tipo, valor_centavos, dia_mes, descricao, inicio, competencia_mes)
+               VALUES (%s,%s,'receita',%s,%s,%s,%s,%s) RETURNING id""", (usuario.id, cid, valor, dia, f"Recarga {c['nome']}", hoje, competencia_mes)).fetchone()["id"]
         cur.execute("UPDATE conta SET recarga_recorrencia_id = %s WHERE id = %s", (rid, cid))
     else:
         rid = rec["id"]
         reativou = ativa and not rec["ativa"]
-        mudou_dia = rec["dia_mes"] != dia
-        cur.execute("UPDATE recorrencia SET valor_centavos = %s, dia_mes = %s, ativa = %s, inicio = CASE WHEN %s THEN %s ELSE inicio END WHERE id = %s",
-                    (valor, dia, ativa, reativou or mudou_dia, hoje, rid))
+        mudou_dia = rec["dia_mes"] != dia or rec["competencia_mes"] != competencia_mes
+        desde = add_months(mes_ini, rec["competencia_mes"])      # os previstos atuais seguem o deslocamento ANTERIOR
+        cur.execute("UPDATE recorrencia SET valor_centavos = %s, dia_mes = %s, ativa = %s, competencia_mes = %s, inicio = CASE WHEN %s THEN %s ELSE inicio END WHERE id = %s",
+                    (valor, dia, ativa, competencia_mes, reativou or mudou_dia, hoje, rid))
         if not ativa or mudou_dia or reativou:
-            cur.execute("DELETE FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (rid, mes_ini))
+            cur.execute("DELETE FROM transacao WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (rid, desde))
         else:
-            cur.execute("UPDATE transacao SET valor_centavos = %s WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (valor, rid, mes_ini))
+            cur.execute("UPDATE transacao SET valor_centavos = %s WHERE recorrencia_id = %s AND estado = 'previsto' AND data_competencia >= %s", (valor, rid, desde))
     if ativa:
         gerar_recorrencias(GerarRecorrenciasIn(mes=mes_ini.strftime("%Y-%m")), cur, usuario)
         if hoje.day >= 22:
@@ -154,7 +155,7 @@ def criar(body: ContaIn, cur=Depends(get_db), usuario: Usuario = Depends(usuario
         "INSERT INTO conta(dono_id, nome, tipo, tipo_conta_id, saldo_inicial_centavos, data_saldo_inicial) VALUES (%s,%s,%s,%s,%s,COALESCE(%s, current_date)) RETURNING id",
         (usuario.id, body.nome, t["classe"], t["id"], body.saldo_inicial_centavos, body.data_saldo_inicial)).fetchone()
     if body.recarga_valor_centavos:
-        aplicar_recarga(cur, usuario, r["id"], body.recarga_valor_centavos, body.recarga_dia, True)
+        aplicar_recarga(cur, usuario, r["id"], body.recarga_valor_centavos, body.recarga_dia, True, body.recarga_competencia_mes)
     return cur.execute(SQL_CONTAS + " WHERE c.id = %s", (r["id"],)).fetchone()
 
 
@@ -181,7 +182,7 @@ def definir_recarga(cid: str, body: RecargaIn, cur=Depends(get_db), usuario: Usu
         raise HTTPException(403, "apenas o dono ou gestor altera a recarga")
     if c["tipo"] != "beneficio":
         raise HTTPException(422, "recarga mensal só existe em contas do comportamento 'benefício'")
-    aplicar_recarga(cur, usuario, cid, body.valor_centavos, body.dia_mes, body.ativa)
+    aplicar_recarga(cur, usuario, cid, body.valor_centavos, body.dia_mes, body.ativa, body.competencia_mes)
     return cur.execute(SQL_CONTAS + " WHERE c.id = %s", (cid,)).fetchone()
 
 

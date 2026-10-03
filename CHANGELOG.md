@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.24.0 — 2026-10-03
+- **Competência diferente do mês do dinheiro, nas recorrências.** Em ticket/vale, por exemplo, o crédito cai no fim do mês para ser usado no seguinte. Agora a recarga e as recorrências de conta têm o campo **"Pertence a"**: **mesmo mês** (como sempre foi), **mês seguinte** ou **mês anterior** (útil para um salário pago no mês seguinte ao trabalhado). Quando não é o mesmo mês, a **competência fica no dia 1 do mês escolhido** e o **caixa continua no dia da recorrência**. O dinheiro aparece na posição do Início no dia em que entra, e a receita conta no resumo do mês e no orçamento do mês a que pertence.
+- Onde configurar: **Contas › (conta de benefício) › Recarga mensal › A recarga pertence a**, e **Mais › Lançamentos recorrentes** (criar ou editar uma recorrência de conta). Compras recorrentes no cartão não deslocam a competência. Excluir uma ocorrência e "pular o mês" continuam referidos ao mês do dinheiro.
+- Alterar o campo vale para os previstos do mês em diante; o que já foi confirmado não muda. Padrão "mesmo mês": quem já usa não nota diferença. Migração `016` (coluna nova).
+
 ## 1.23.0 — 2026-10-03
 - **Disponibilidade por caixa ou por compromissos.** O quadro de posição do Início ganhou o seletor **Caixa | Compromissos**. **Caixa** é como sempre foi: cada valor conta no dia em que o dinheiro se move (fatura no vencimento). **Compromissos** é a visão prudente: as **despesas contam quando acontecem** (competência), mesmo que o dinheiro saia depois, como compras no cartão com fatura a vencer depois do período, cheque e Pix agendado; as **entradas continuam só pelo caixa**, para nunca mostrar mais dinheiro do que estará na conta. A conta Total = Saldo + A receber + A pagar + Faturas segue valendo nas duas.
 - **Visão padrão no perfil.** Em **Meu perfil › Disponibilidade no Início** cada pessoa escolhe com qual visão o Início abre (padrão: Caixa, então nada muda para quem já usa). Trocar no Início vale só até recarregar o app.

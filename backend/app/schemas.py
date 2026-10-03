@@ -38,6 +38,7 @@ class RecargaIn(BaseModel):
     valor_centavos: int = Field(gt=0)
     dia_mes: int = Field(ge=1, le=31)
     ativa: bool = True
+    competencia_mes: Literal[0, 1] = 0       # 1 = a recarga pertence ao mês seguinte (competência no dia 1 dele)
 
 
 class ContaIn(BaseModel):
@@ -46,6 +47,7 @@ class ContaIn(BaseModel):
     tipo_conta_id: Optional[UUID] = None
     recarga_valor_centavos: Optional[int] = Field(default=None, gt=0)
     recarga_dia: Optional[int] = Field(default=None, ge=1, le=31)
+    recarga_competencia_mes: Literal[0, 1] = 0
     saldo_inicial_centavos: int = 0
     data_saldo_inicial: Optional[date] = None
 
@@ -265,9 +267,11 @@ class RecorrenciaIn(BaseModel):
     forma_pagamento: Optional[str] = None
     inicio: Optional[date] = None
     fim: Optional[date] = None
+    competencia_mes: Literal[-1, 0, 1] = 0   # só para recorrências de conta; compras no cartão ignoram
 
 
 class RecorrenciaPatch(BaseModel):
+    competencia_mes: Optional[Literal[-1, 0, 1]] = None
     valor_centavos: Optional[int] = Field(default=None, gt=0)
     dia_mes: Optional[int] = Field(default=None, ge=1, le=31)
     categoria_id: Optional[UUID] = None

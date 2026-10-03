@@ -78,3 +78,57 @@ def test_recarga_so_em_beneficio_e_permissao(nova_pessoa):
     assert b.put(f"/api/contas/{vr['id']}/recarga", json={"valor_centavos": 100, "dia_mes": 5}).status_code == 404
     # compatibilidade: criação só com 'tipo'
     assert a.post("/api/contas", json={"nome": "Poup", "tipo": "poupanca"}).json()["tipo_nome"] == "Investimento"
+
+
+def _previstos_da_conta(p, cid):
+    hoje = date.today()
+    lista = p.get(f"/api/transacoes?conta_id={cid}&de={hoje.year}-01-01&ate={hoje.year + 1}-12-31&base=caixa&limite=500").json()
+    return sorted((x for x in lista if x["conta_id"] == cid), key=lambda x: x["data_caixa"])
+
+
+def test_recarga_com_competencia_no_mes_seguinte(nova_pessoa):
+    a = nova_pessoa("vrc")
+    t = tipo_ticket(a)
+    r = a.post("/api/contas", json={"nome": "VR", "tipo_conta_id": t["id"], "recarga_valor_centavos": 80000, "recarga_dia": 28, "recarga_competencia_mes": 1})
+    assert r.status_code == 201, r.text
+    c = r.json()
+    assert c["recarga_competencia_mes"] == 1
+    hoje = date.today()
+    a.post("/api/recorrencias/gerar", json={"mes": hoje.strftime("%Y-%m"), "ate": f"{hoje.year + 1}-03"})
+    ps = _previstos_da_conta(a, c["id"])
+    assert len(ps) >= 5
+    for x in ps:
+        cx, cp = date.fromisoformat(x["data_caixa"]), date.fromisoformat(x["data_competencia"])
+        assert cx.day == 28
+        assert cp.day == 1 and (cp.year, cp.month) == ((cx.year + (cx.month == 12)), cx.month % 12 + 1)   # dia 1 do mês seguinte
+    # gerar de novo não duplica
+    a.post("/api/recorrencias/gerar", json={"mes": date.today().strftime("%Y-%m")})
+    assert len(_previstos_da_conta(a, c["id"])) == len(ps)
+    # excluir uma ocorrência pula o mês do CAIXA e não volta
+    alvo = ps[1]
+    assert a.delete(f"/api/transacoes/{alvo['id']}").status_code == 200
+    a.post("/api/recorrencias/gerar", json={"mes": alvo["data_caixa"][:7]})
+    assert alvo["data_caixa"] not in [x["data_caixa"] for x in _previstos_da_conta(a, c["id"])]
+    # voltar para o mesmo mês: competência = caixa
+    assert a.put(f"/api/contas/{c['id']}/recarga", json={"valor_centavos": 80000, "dia_mes": 28, "ativa": True, "competencia_mes": 0}).status_code == 200
+    novos = _previstos_da_conta(a, c["id"])
+    assert novos and all(x["data_competencia"] == x["data_caixa"] for x in novos)
+
+
+def test_recorrencia_geral_com_competencia_no_mes_anterior(nova_pessoa):
+    a = nova_pessoa("sal")
+    from conftest import conta
+    cc = conta(a, "Corrente", 0)
+    r = a.post("/api/recorrencias", json={"tipo": "receita", "valor_centavos": 500000, "dia_mes": 5, "conta_id": cc["id"], "competencia_mes": -1})
+    assert r.status_code == 201, r.text
+    assert r.json()["competencia_mes"] == -1
+    a.post("/api/recorrencias/gerar", json={"mes": date.today().strftime("%Y-%m"), "ate": f"{date.today().year + 1}-03"})
+    ps = _previstos_da_conta(a, cc["id"])
+    assert ps
+    for x in ps:
+        cx, cp = date.fromisoformat(x["data_caixa"]), date.fromisoformat(x["data_competencia"])
+        assert cx.day == 5 and cp.day == 1 and (cp.year * 12 + cp.month) == (cx.year * 12 + cx.month) - 1
+    # no cartão a competência nunca é deslocada
+    k = a.post("/api/cartoes", json={"nome": "Visa", "dia_fechamento": 10, "dia_vencimento": 20, "final_principal": "1111"}).json()
+    rc = a.post("/api/recorrencias", json={"tipo": "despesa", "valor_centavos": 1000, "dia_mes": 3, "plastico_id": k["plasticos"][0]["id"], "competencia_mes": 1})
+    assert rc.status_code == 201 and rc.json()["competencia_mes"] == 0

@@ -45,10 +45,21 @@ async function contas(raiz, ctx) {
 const CLASSES = [['corrente', 'Conta corrente (entra no disponível)'], ['dinheiro', 'Dinheiro (entra no disponível)'], ['terceiros', 'Terceiros (entra no disponível)'],
   ['investimento', 'Investimento (reserva)'], ['beneficio', 'Benefício: ticket/vale (saldo à parte)']];
 
+// "A qual mês pertence": a competência vai para o dia 1 do mês escolhido; o caixa continua no dia da recorrência
+function seletorCompetencia(valor, comAnterior) {
+  const sel = h('select', null, comAnterior ? h('option', { value: '-1' }, 'Mês anterior ao do recebimento/pagamento') : null,
+    h('option', { value: '0' }, 'Mesmo mês do dinheiro'), h('option', { value: '1' }, 'Mês seguinte ao do dinheiro'));
+  sel.value = String(valor || 0);
+  return sel;
+}
+const DICA_COMPETENCIA = 'Define em qual mês o valor conta no resumo e no orçamento. Com "mês seguinte", a competência é o dia 1 do mês seguinte; o dinheiro continua entrando no dia da recarga.';
+
 function camposRecarga(c) {
   const valor = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0,00', value: c && c.recarga_valor_centavos ? centavosParaCampo(c.recarga_valor_centavos) : '' });
   const dia = h('input', { type: 'number', min: 1, max: 31, placeholder: 'Ex.: 5', value: c && c.recarga_dia ? c.recarga_dia : '' });
-  return { valor, dia, vista: [campo('Recarga mensal (R$)', valor, 'O app cria a entrada prevista todo mês; você confirma quando o crédito cair.'), campo('Dia da recarga', dia)] };
+  const comp = seletorCompetencia(c && c.recarga_competencia_mes, false);
+  return { valor, dia, comp, vista: [campo('Recarga mensal (R$)', valor, 'O app cria a entrada prevista todo mês; você confirma quando o crédito cair.'), campo('Dia da recarga', dia),
+    campo('A recarga pertence a', comp, DICA_COMPETENCIA)] };
 }
 
 function novaConta(recarregar) {
@@ -79,7 +90,7 @@ function novaConta(recarregar) {
         if (blocoRec.style.display !== 'none' && (rec.valor.value.trim() || rec.dia.value)) {
           const rv = parseValor(rec.valor.value);
           if (Number.isNaN(rv) || rv <= 0 || !(+rec.dia.value >= 1 && +rec.dia.value <= 31)) throw new Error('Confira o valor e o dia da recarga.');
-          b.recarga_valor_centavos = rv; b.recarga_dia = +rec.dia.value;
+          b.recarga_valor_centavos = rv; b.recarga_dia = +rec.dia.value; b.recarga_competencia_mes = +rec.comp.value;
         }
         const tSel = tipos.find(x => x.id === tipo.value);
         const cfgInv = tSel && tSel.classe === 'investimento' && inv ? inv.ler() : null;      // valida antes de criar a conta
@@ -160,7 +171,7 @@ async function detalheConta(c, recarregar) {
         h('button', { class: 'btn', onclick: acao(async () => {
           const rv = parseValor(rec.valor.value);
           if (Number.isNaN(rv) || rv <= 0 || !(+rec.dia.value >= 1 && +rec.dia.value <= 31)) throw new Error('Confira o valor e o dia da recarga.');
-          await PUT_(`/api/contas/${c.id}/recarga`, { valor_centavos: rv, dia_mes: +rec.dia.value, ativa: ativa.checked });
+          await PUT_(`/api/contas/${c.id}/recarga`, { valor_centavos: rv, dia_mes: +rec.dia.value, ativa: ativa.checked, competencia_mes: +rec.comp.value });
           fechar(); aviso('Recarga atualizada'); await carregarCadastros(); recarregar();
         }) }, 'Salvar recarga'),
         h('p', { class: 'dica' }, 'Alterar o valor ou o dia atualiza as entradas previstas do mês em diante. O que já foi confirmado não muda; para um mês específico diferente, edite aquele lançamento. Desativar remove os previstos futuros.'));
@@ -329,6 +340,7 @@ function editarRecorrencia(r, recarregar) {
     const forma = h('select', null, h('option', { value: '' }, '—'), Object.entries(FORMAS).map(([k, v]) => h('option', { value: k }, v)));
     forma.value = r.forma_pagamento || '';
     const fim = h('input', { type: 'date', value: r.fim ? String(r.fim).slice(0, 10) : '' });
+    const comp = seletorCompetencia(r.competencia_mes, true);
     const quando = h('select', null, h('option', { value: mesISO() }, `Deste mês em diante (${nomeMes(mesISO())})`), h('option', { value: somarMes(mesISO(), 1) }, `Só a partir do próximo mês (${nomeMes(somarMes(mesISO(), 1))})`));
     limpar(cat).append(h('option', { value: '' }, 'Sem categoria'));
     const cs = estado.categorias.filter(c => c.dono_id === dono && c.ativa && c.tipo === r.tipo);
@@ -354,7 +366,7 @@ function editarRecorrencia(r, recarregar) {
       if (!(v > 0) || !(+dia.value >= 1 && +dia.value <= 31)) throw new Error('Informe um valor maior que zero e um dia entre 1 e 31.');
       const nome = campoFav.input.value.trim();
       const b = { valor_centavos: v, dia_mes: +dia.value, categoria_id: cat.value || undefined, favorecido_nome: nome || undefined, descricao: nome || undefined,
-        forma_pagamento: r.conta_id ? (forma.value || undefined) : undefined, a_partir_de: quando.value, ...(fim.value ? { fim: fim.value } : { limpar_fim: true }), ...extra };
+        forma_pagamento: r.conta_id ? (forma.value || undefined) : undefined, a_partir_de: quando.value, ...(r.conta_id ? { competencia_mes: +comp.value } : {}), ...(fim.value ? { fim: fim.value } : { limpar_fim: true }), ...extra };
       const res = await PATCH(`/api/recorrencias/${r.id}`, b);
       fechar(); aviso(msg(res)); recarregar();
     });
@@ -362,6 +374,7 @@ function editarRecorrencia(r, recarregar) {
       h('p', { class: 'dica' }, `${r.tipo === 'receita' ? 'Receita' : 'Despesa'} em ${r.conta_nome || r.cartao_nome + ' ·· ' + r.plastico_final}. Para trocar a conta ou o cartão, crie outra recorrência.`),
       campo('Valor (R$)', valor), campo('Dia do mês', dia), campo(r.tipo === 'receita' ? 'Pagador' : 'Favorecido', campoFav.el), campo('Categoria', cat),
       r.conta_id ? campo('Forma de pagamento', forma) : null,
+      r.conta_id ? campo('Pertence a', comp, DICA_COMPETENCIA) : null,
       campo('Vale até (opcional)', fim, 'Deixe em branco para continuar todo mês.'),
       puladosBox,
       campo('Aplicar', quando, 'Os previstos desse período em diante (até 5 meses à frente) são refeitos com os dados novos. O que já foi confirmado não muda, e ajustes manuais feitos em previstos futuros são substituídos.'),
@@ -416,16 +429,19 @@ function novaRecorrencia(recarregar) {
         if (fs.length) cat.append(h('optgroup', { label: g.nome }, fs.map(f => h('option', { value: f.id }, f.nome))));
       }
     };
+    const compNova = seletorCompetencia(0, true);
+    const cComp = campo('Pertence a', compNova, DICA_COMPETENCIA);
     const cFavRec = campo('Favorecido', campoFav.el);
     const rotuloFav = () => { cFavRec.firstChild.textContent = tipo.value === 'receita' ? 'Pagador' : 'Favorecido'; };
-    dest.addEventListener('change', montar); tipo.addEventListener('change', () => { montar(); rotuloFav(); }); montar(); rotuloFav();
-    corpo.append(campo('Tipo', tipo), campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Primeira cobrança', primeira, 'Se o dia deste mês já chegou e o valor já está no seu saldo, deixe "Próximo mês". Escolha "Este mês" para que ele apareça como pendente agora.'), cFavRec, campo('Conta ou cartão', dest), campo('Categoria', cat), campo('Forma de pagamento', forma),
+    const mostrarComp = () => { const d = dests.find(x => x.valor === dest.value); cComp.style.display = d && d.tipo === 'conta' ? '' : 'none'; };
+    dest.addEventListener('change', () => { montar(); mostrarComp(); }); tipo.addEventListener('change', () => { montar(); rotuloFav(); }); montar(); rotuloFav(); mostrarComp();
+    corpo.append(campo('Tipo', tipo), campo('Valor (R$)', valor), campo('Dia do mês', dia), campo('Primeira cobrança', primeira, 'Se o dia deste mês já chegou e o valor já está no seu saldo, deixe "Próximo mês". Escolha "Este mês" para que ele apareça como pendente agora.'), cFavRec, campo('Conta ou cartão', dest), campo('Categoria', cat), campo('Forma de pagamento', forma), cComp,
       h('button', { class: 'btn', onclick: acao(async () => {
         const v = parseValor(valor.value), d = dests.find(x => x.valor === dest.value);
         if (!(v > 0) || !dia.value || !d) throw new Error('Informe valor, dia e conta/cartão.');
         const b = { tipo: tipo.value, valor_centavos: v, dia_mes: +dia.value, favorecido_nome: fav.value.trim() || null, categoria_id: cat.value || null,
           forma_pagamento: d.tipo === 'plastico' ? 'cartao' : (forma.value || null), descricao: fav.value.trim() || null };
-        if (d.tipo === 'plastico') b.plastico_id = d.id; else b.conta_id = d.id;
+        if (d.tipo === 'plastico') b.plastico_id = d.id; else { b.conta_id = d.id; b.competencia_mes = +compNova.value; }
         b.inicio = primeira.value === 'proximo' ? `${somarMes(mesISO(), 1)}-01` : `${mesISO()}-01`;
         await POST('/api/recorrencias', b);
         try { await POST('/api/recorrencias/gerar', { mes: mesISO() }); } catch { /* a geração automática do Início tenta de novo */ }
