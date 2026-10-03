@@ -231,3 +231,11 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .mais-topo { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; display: grid; place-items: center; font-size: 1.5rem; line-height: 1; color: var(--suave); text-decoration: none; border-radius: 12px; }
 .mais-topo:active { background: var(--borda); }
 .sem-clique .corpo small { white-space: normal; overflow: visible; text-overflow: clip; }
+
+.grupo { margin: 6px 0; }
+.grupo > summary { display: flex; justify-content: space-between; gap: 8px; cursor: pointer; padding: 6px 8px; border-radius: 8px; background: var(--card, #f3f4f6); font-size: .9rem; }
+.grupo.cartao > summary { font-weight: 700; }
+.grupo.data > summary { font-size: .82rem; color: var(--suave); background: transparent; border-bottom: 1px solid var(--borda, #e5e7eb); }
+.grupo.data { margin-left: 8px; }
+.grupo.cartao > .grupo { margin-left: 8px; }
+.linha-botoes.mini { gap: 4px; flex-wrap: wrap; }

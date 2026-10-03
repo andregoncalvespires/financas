@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.21.2 — 2026-10-03
+- **Cartões: detalhe da fatura mais fácil de conferir.** Ao abrir uma fatura, as compras agora são agrupadas primeiro por **cartão (final)** e, dentro dele, por **data da compra**, como no extrato do banco, cada nível com o seu subtotal. É possível recolher/expandir a fatura, cada cartão e cada data, e há os atalhos **Expandir tudo**, **Recolher tudo** e **Só cartões**. Só a tela mudou; a API é a mesma.
+
 ## 1.21.1 — 2026-10-03
 - **Início: o Total agora bate com a linha de baixo.** O quadro de posição (Disponível, Benefícios, Subtotal, Investimento, Outros e Total) passa a **incluir o que ainda vai entrar no período** (salário, recargas de benefício, rendimentos previstos). Assim o Total é exatamente **Saldo + A receber + A pagar + Faturas**. Antes o quadro deixava o "A receber" de fora, e a diferença crescia a cada mês a mais escolhido. O mesmo vale para o valor de cada conta na lista de Contas. Os dados da API não mudam: `livre` continua sendo o valor sem as entradas e `projetado` é o que a tela mostra.
 

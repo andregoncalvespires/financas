@@ -84,18 +84,63 @@ async function listarFaturas(k, corpo, recarregar) {
   }
 }
 
+function linhaItem(t, mostrarCartao, aoMudar) {
+  const sub = [t.categoria_nome, t.total_parcelas ? `parcela ${t.numero_parcela}/${t.total_parcelas}` : null,
+    mostrarCartao && t.criado_por_nome ? `por ${t.criado_por_nome}` : null].filter(Boolean).join(' · ');
+  return h('button', { class: 'linha item', onclick: () => detalhe(t, aoMudar || (() => {})) },
+    h('div', { class: 'corpo' }, h('b', null, t.favorecido_nome || t.descricao || 'Sem descrição'), sub ? h('small', null, sub) : null),
+    h('b', { class: t.valor_centavos < 0 ? 'neg' : 'pos' }, brl(-t.valor_centavos)));
+}
+
+function grupo(classe, titulo, total, filhos, aberto) {
+  const d = h('details', { class: 'grupo ' + classe },
+    h('summary', null, h('span', { class: 'corpo' }, titulo), h('b', null, brl(-total))), filhos);
+  if (aberto) d.open = true;
+  return d;
+}
+
+// fatura -> cartão (final) -> data de compra; cada nível pode ser recolhido/expandido
 async function carregarItens(alvo, url, mostrarCartao, aoMudar) {
   limpar(alvo).append(h('div', { class: 'spinner' }));
   try {
-    const ts = (await GET(url)).sort((a, b) => String(a.data_compra || a.data_competencia).localeCompare(String(b.data_compra || b.data_competencia)));
+    const dia = (t) => String(t.data_compra || t.data_competencia).slice(0, 10);
+    const ts = (await GET(url)).sort((a, b) => dia(a).localeCompare(dia(b)));
     limpar(alvo);
     if (!ts.length) return alvo.append(vazio('Sem compras.'));
+    if (!mostrarCartao) {
+      for (const t of ts) alvo.append(linhaItem(t, false, aoMudar));
+      return;
+    }
+    const porCartao = new Map();
     for (const t of ts) {
-      const sub = [t.categoria_nome, mostrarCartao ? `·· ${t.plastico_final}` : null, t.total_parcelas ? `parcela ${t.numero_parcela}/${t.total_parcelas}` : null,
-        mostrarCartao && t.criado_por_nome ? `por ${t.criado_por_nome}` : null].filter(Boolean).join(' · ');
-      alvo.append(h('button', { class: 'linha item', onclick: () => detalhe(t, aoMudar || (() => {})) },
-        h('div', { class: 'corpo' }, h('b', null, `${dataCurta(t.data_compra || t.data_competencia)} · ${t.favorecido_nome || t.descricao || 'Sem descrição'}`), h('small', null, sub)),
-        h('b', { class: t.valor_centavos < 0 ? 'neg' : 'pos' }, brl(-t.valor_centavos))));
+      const c = String(t.plastico_final || '----');
+      if (!porCartao.has(c)) porCartao.set(c, []);
+      porCartao.get(c).push(t);
+    }
+    const cartoesOrd = [...porCartao.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const nivel = (cls) => () => [...alvo.querySelectorAll('details.grupo.' + cls)];
+    const alterna = (abrir) => () => {
+      for (const d of alvo.querySelectorAll('details.grupo')) d.open = abrir;
+    };
+    if (cartoesOrd.length > 1 || ts.length > 6) {
+      alvo.append(h('div', { class: 'linha-botoes mini' },
+        h('button', { class: 'btn link', onclick: alterna(true) }, 'Expandir tudo'),
+        h('button', { class: 'btn link', onclick: alterna(false) }, 'Recolher tudo'),
+        h('button', { class: 'btn link', onclick: () => { nivel('data')().forEach(d => { d.open = false; }); nivel('cartao')().forEach(d => { d.open = true; }); } }, 'Só cartões')));
+    }
+    for (const [final, lista] of cartoesOrd) {
+      const porDia = new Map();
+      for (const t of lista) {
+        const k = dia(t);
+        if (!porDia.has(k)) porDia.set(k, []);
+        porDia.get(k).push(t);
+      }
+      const dias = [...porDia.entries()].map(([d, itens]) =>
+        grupo('data', `${dataCurta(d)} · ${itens.length} compra(s)`, itens.reduce((x, t) => x + t.valor_centavos, 0),
+          itens.map(t => linhaItem(t, true, aoMudar)), true));
+      const total = lista.reduce((x, t) => x + t.valor_centavos, 0);
+      const nomes = [...new Set(lista.map(t => t.plastico_rotulo).filter(Boolean))];
+      alvo.append(grupo('cartao', `·· ${final}${nomes.length ? ' · ' + nomes.join(', ') : ''} · ${lista.length} compra(s)`, total, dias, true));
     }
   } catch (e) { limpar(alvo).append(h('p', { class: 'erro-form' }, e.message)); }
 }
