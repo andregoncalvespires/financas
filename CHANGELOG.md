@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.20.0 — 2026-10-03
+- **Administração: uso de IA e média de lançamentos por pessoa.** A lista de pessoas passa a mostrar quantas **leituras por IA** (comprovantes e faturas) cada uma fez, no total e nos últimos 30 dias, e a **média mensal de lançamentos** que ela criou (últimos 3 meses, sem contar recorrências e rendimentos gerados sozinhos). São apenas contagens; continua sem mostrar lançamentos, valores, descrições ou nomes de contas. A contagem de IA inclui o histórico anterior à atualização. Migração `013` (só troca a função de relatório).
+
 ## 1.19.0 — 2026-10-03
 - **Nova barra de navegação.** **Investimentos** ganhou uma aba própria na barra de baixo (Início, Lançamentos, Capturar, Cartões e Investimentos). Quem ainda não tem conta de investimento vê a tela vazia, com a orientação de como criar uma. O atalho para **Mais** virou um ícone ☰ no canto superior direito de todas as telas (menos nas do próprio Mais e no formulário de novo lançamento). As Premissas passam a ficar em Investimentos › Premissas.
 - **Aviso de novo cadastro vai para o `ADMIN_EMAIL`.** O e-mail de aviso a cada conta nova deixa de ir para o `SMTP_USER` e passa a ir para o e-mail do administrador (`ADMIN_EMAIL`). Com `ADMIN_EMAIL` vazio, nada é enviado.

@@ -27,7 +27,8 @@ def test_so_o_admin_ve_a_lista_com_contagens_dos_donos(nova_pessoa, monkeypatch)
     assert (u["contas"], u["cartoes"]) == (3, 1)
     assert u["ultimo_acesso"] and u["criado_em"]
     assert por_email[adm.email]["contas"] == 0
-    assert set(u) == {"id", "nome", "email", "criado_em", "ultimo_acesso", "contas", "cartoes"}   # nada de lançamentos ou valores
+    assert set(u) == {"id", "nome", "email", "criado_em", "ultimo_acesso", "contas", "cartoes",
+                      "leituras_ia", "leituras_ia_30d", "lancamentos_por_mes"}   # só contagens: nada de lançamentos ou valores
 
 
 def test_conta_compartilhada_nao_conta_para_quem_so_participa(nova_pessoa, monkeypatch):
@@ -45,3 +46,24 @@ def test_marcador_de_ex_usuario_nao_aparece(nova_pessoa, monkeypatch):
     adm = nova_pessoa("adm3")
     monkeypatch.setattr(settings, "admin_email", adm.email)
     assert all(u["email"] != "ex-usuario@invalido.local" for u in adm.get("/api/admin/usuarios").json())
+
+
+def test_contadores_de_ia_e_lancamentos_por_mes(nova_pessoa, monkeypatch):
+    adm, p = nova_pessoa("adm9"), nova_pessoa("uso9")
+    monkeypatch.setattr(settings, "admin_email", adm.email)
+    c = conta(p, "Corrente", 0)
+    antes = {u["email"]: u for u in adm.get("/api/admin/usuarios").json()}[p.email]
+    assert (antes["leituras_ia"], antes["leituras_ia_30d"], float(antes["lancamentos_por_mes"])) == (0, 0, 0.0)
+    for i in range(6):                                                    # 6 lançamentos manuais
+        r = p.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 100 + i, "data_competencia": "2026-10-01", "data_caixa": "2026-10-01",
+                                           "conta_id": c["id"], "estado": "confirmado"})
+        assert r.status_code == 201, r.text
+    p.post("/api/recorrencias", json={"tipo": "despesa", "valor_centavos": 500, "dia_mes": 5, "conta_id": c["id"], "descricao": "Aluguel", "inicio": "2026-10-01"})
+    from app.db import sessao
+    uid = p.get("/api/eu").json()["id"]                                   # 3 leituras de IA (2 recentes, 1 antiga)
+    with sessao(uid) as cur:
+        cur.execute("INSERT INTO captura(criado_por, status) VALUES (%s,'descartada'), (%s,'erro')", (uid, uid))
+        cur.execute("INSERT INTO captura(criado_por, status, criado_em) VALUES (%s,'descartada', now() - interval '60 days')", (uid,))
+    u = {x["email"]: x for x in adm.get("/api/admin/usuarios").json()}[p.email]
+    assert (u["leituras_ia"], u["leituras_ia_30d"]) == (3, 2)
+    assert float(u["lancamentos_por_mes"]) == 6.0                         # conta recém-criada: divide por 1 mês; recorrência não conta

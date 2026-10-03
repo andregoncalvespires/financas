@@ -707,11 +707,12 @@ async function administracao(raiz, ctx) {
   const us = await GET('/api/admin/usuarios');
   const quando = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'nunca';
   limpar(raiz).append(voltar('Administração'),
-    h('p', { class: 'dica' }, `${us.length} pessoa(s) cadastrada(s). Contas e cartões são os ativos de que a pessoa é dona. O último acesso é aproximado (atualiza no máximo a cada hora).`),
+    h('p', { class: 'dica' }, `${us.length} pessoa(s) cadastrada(s). Contas e cartões são os ativos de que a pessoa é dona. O último acesso é aproximado (atualiza no máximo a cada hora). "IA" são as leituras por IA (comprovantes e faturas). "Lançamentos/mês" é a média dos últimos 3 meses de lançamentos que a pessoa criou, sem contar os gerados sozinhos (recorrências e rendimentos). São só contagens: o conteúdo e os valores não aparecem aqui.`),
     us.map(u => h('div', { class: 'linha item sem-clique' },
       h('div', { class: 'corpo' }, h('b', null, u.nome, u.id === estado.eu.id ? h('small', { class: 'selo' }, 'você') : null),
         h('small', null, u.email),
-        h('small', null, `cadastro ${dataLonga(u.criado_em)} · último acesso ${quando(u.ultimo_acesso)}`)),
+        h('small', null, `cadastro ${dataLonga(u.criado_em)} · último acesso ${quando(u.ultimo_acesso)}`),
+        h('small', null, `IA: ${u.leituras_ia} no total, ${u.leituras_ia_30d} em 30 dias · ${String(u.lancamentos_por_mes).replace('.', ',')} lançamentos/mês`)),
       h('small', { class: 'centro' }, `${u.contas} conta(s)`, h('br'), `${u.cartoes} cartão(ões)`))));
 }
 

@@ -112,7 +112,7 @@ Any SMTP server that accepts **user name and password** works (a sending service
 <details>
 <summary><b>Administration area (who signed up and when they last used the app)</b></summary>
 
-Optional and read-only. Fill in `ADMIN_EMAIL: "you@example.com"` in `docker-compose.yml` and run `docker compose up -d`. Whoever signs in with that e-mail sees **More › Administration**: the list of registered people, sign-up date, last access, and how many active accounts and cards each one owns (only the ones they own). The area **does not show transactions, amounts or account names**. With `ADMIN_EMAIL` empty (the default) the area does not exist for anyone.
+Optional and read-only. Fill in `ADMIN_EMAIL: "you@example.com"` in `docker-compose.yml` and run `docker compose up -d`. Whoever signs in with that e-mail sees **More › Administration**: the list of registered people, sign-up date, last access, and how many active accounts and cards each one owns (only the ones they own), how many **AI readings** they made (total and in the last 30 days) and their **monthly average of entries** created (last 3 months, not counting automatically generated ones). These are counts only: the area **does not show transactions, amounts or account names**. With `ADMIN_EMAIL` empty (the default) the area does not exist for anyone.
 </details>
 
 <details>

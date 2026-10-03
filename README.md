@@ -112,7 +112,7 @@ Qualquer servidor SMTP que aceite **usuário e senha** serve (um serviço de env
 <details>
 <summary><b>Área de administração (quem se cadastrou e quando acessou)</b></summary>
 
-Opcional e somente leitura. Preencha `ADMIN_EMAIL: "seu@email.com"` no `docker-compose.yml` e rode `docker compose up -d`. Quem entrar com esse e-mail passa a ver **Mais › Administração**, com a lista de pessoas cadastradas, a data de cadastro, o último acesso e quantas contas e cartões ativos cada uma tem (só os de que ela é dona). A área **não mostra lançamentos, valores nem nomes de contas**. Com `ADMIN_EMAIL` vazio (o padrão), a área não existe para ninguém.
+Opcional e somente leitura. Preencha `ADMIN_EMAIL: "seu@email.com"` no `docker-compose.yml` e rode `docker compose up -d`. Quem entrar com esse e-mail passa a ver **Mais › Administração**, com a lista de pessoas cadastradas, a data de cadastro, o último acesso e quantas contas e cartões ativos cada uma tem (só os de que ela é dona), quantas **leituras por IA** fez (total e nos últimos 30 dias) e a **média mensal de lançamentos** que criou (últimos 3 meses, sem os gerados sozinhos). São apenas contagens: a área **não mostra lançamentos, valores nem nomes de contas**. Com `ADMIN_EMAIL` vazio (o padrão), a área não existe para ninguém.
 </details>
 
 <details>
