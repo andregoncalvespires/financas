@@ -192,6 +192,7 @@ class PlasticoIn(BaseModel):
     final: str = Field(pattern=r"^\d{4}$")
     rotulo: str = Field(min_length=1, max_length=60)
     tipo: Literal["plastico", "virtual"] = "plastico"
+    proprio: bool = False
 
 
 class PlasticoPatch(BaseModel):
@@ -200,6 +201,7 @@ class PlasticoPatch(BaseModel):
     tipo: Optional[Literal["plastico", "virtual"]] = None
     ativo: Optional[bool] = None
     principal: Optional[bool] = None
+    proprio: Optional[bool] = None
 
 
 class PagarFaturaIn(BaseModel):

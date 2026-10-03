@@ -242,3 +242,6 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 
 details.adicionais > summary { cursor: pointer; padding: 6px 2px; font-weight: 600; color: var(--suave); }
 details.adicionais[open] > summary { margin-bottom: 6px; }
+
+.marca { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: .92rem; }
+.marca input { width: auto; }

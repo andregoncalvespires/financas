@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.22.0 — 2026-10-03
+- **Cartão de uso próprio.** Nem todo cartão tem outra pessoa como portador. Agora cada cartão pode ser marcado como **"É meu (uso próprio)"**, e a tela deixa de mostrar "sem portador vinculado": aparece "uso próprio" ou o nome do portador. Ao adicionar um cartão há a opção "Sou eu quem usa este cartão", marcada por padrão, e o cartão principal de uma conta nova já nasce como uso próprio. Cartões antigos continuam como estavam; basta tocar no cartão e escolher "É meu". Para convidar alguém, desmarque antes. Migração `015` (coluna nova, sem perda de dados).
+
 ## 1.21.3 — 2026-10-03
 - **Cartões: mais área útil.** Em cada conta de cartão o cartão **principal** fica como cabeçalho e os **adicionais** ficam num bloco "Adicionais (n)" que abre e fecha (começa fechado), junto do botão de adicionar cartão.
 - **Faturas em ordem crescente de vencimento** (da mais antiga para a mais nova).

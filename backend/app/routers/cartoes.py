@@ -19,7 +19,7 @@ FROM cartao k JOIN usuario u ON u.id = k.dono_id
 """
 
 SQL_PLASTICOS = """
-SELECT p.id, p.cartao_id, p.final, p.rotulo, p.tipo, p.principal, p.ativo, p.portador_id, pu.nome AS portador_nome
+SELECT p.id, p.cartao_id, p.final, p.rotulo, p.tipo, p.principal, p.ativo, p.portador_id, p.proprio, pu.nome AS portador_nome
 FROM plastico p LEFT JOIN usuario pu ON pu.id = p.portador_id
 """
 
@@ -47,7 +47,7 @@ def criar(body: CartaoIn, cur=Depends(get_db), usuario: Usuario = Depends(usuari
            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (usuario.id, body.nome, body.bandeira, body.dia_fechamento, body.dia_vencimento, body.conta_pagamento_id, body.limite_centavos)).fetchone()
     if body.final_principal:
-        cur.execute("INSERT INTO plastico(cartao_id, final, rotulo, tipo, principal) VALUES (%s,%s,'Principal','plastico',true)", (r["id"], body.final_principal))
+        cur.execute("INSERT INTO plastico(cartao_id, final, rotulo, tipo, principal, proprio) VALUES (%s,%s,'Principal','plastico',true,true)", (r["id"], body.final_principal))
     return _cartoes(cur, usuario.id, " WHERE k.id = %(cid)s", {"cid": r["id"]})[0]
 
 
@@ -89,8 +89,8 @@ def criar_plastico(cid: str, body: PlasticoIn, cur=Depends(get_db)):
     if not cur.execute("SELECT dono_cartao(%s) AS ok", (cid,)).fetchone()["ok"]:
         raise HTTPException(404, "conta de cartão não encontrada ou você não é o dono")
     return cur.execute(
-        "INSERT INTO plastico(cartao_id, final, rotulo, tipo, principal) VALUES (%s,%s,%s,%s,false) RETURNING id, cartao_id, final, rotulo, tipo, principal, ativo, portador_id",
-        (cid, body.final, body.rotulo, body.tipo)).fetchone()
+        "INSERT INTO plastico(cartao_id, final, rotulo, tipo, principal, proprio) VALUES (%s,%s,%s,%s,false,%s) RETURNING id, cartao_id, final, rotulo, tipo, principal, ativo, portador_id, proprio",
+        (cid, body.final, body.rotulo, body.tipo, body.proprio)).fetchone()
 
 
 def _plastico_do_dono(cur, pid):
@@ -104,6 +104,8 @@ def _plastico_do_dono(cur, pid):
 def alterar_plastico(pid: str, body: PlasticoPatch, cur=Depends(get_db)):
     p = _plastico_do_dono(cur, pid)
     dados = body.model_dump(exclude={"principal"})
+    if body.proprio and p["portador_id"]:
+        raise HTTPException(422, "este cartão já tem portador: desvincule antes de marcá-lo como seu")
     tipo = body.tipo or p["tipo"]
     if p["principal"]:
         if body.principal is False:
@@ -145,12 +147,14 @@ def remover_portador(pid: str, cur=Depends(get_db)):
 
 @router.post("/plasticos/{pid}/convites", status_code=201)
 def convidar_portador(pid: str, body: ConvitePortadorIn, bg: BackgroundTasks, cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
-    p = cur.execute("SELECT p.final, p.portador_id, k.nome FROM plastico p JOIN cartao k ON k.id = p.cartao_id WHERE p.id = %s AND k.dono_id = %s",
+    p = cur.execute("SELECT p.final, p.portador_id, p.proprio, k.nome FROM plastico p JOIN cartao k ON k.id = p.cartao_id WHERE p.id = %s AND k.dono_id = %s",
                     (pid, usuario.id)).fetchone()
     if not p:
         raise HTTPException(404, "plástico não encontrado ou você não é o dono")
     if p["portador_id"]:
         raise HTTPException(409, "este plástico já tem portador")
+    if p["proprio"]:
+        raise HTTPException(409, "este cartão está marcado como seu; desmarque antes de convidar outro portador")
     email = body.email.lower()
     if email == usuario.email.lower():
         raise HTTPException(422, "você é o dono; o portador deve ser outra pessoa")

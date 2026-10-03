@@ -139,3 +139,19 @@ def test_compra_no_cartao_nunca_fica_prevista(nova_pessoa):
     c = a.post("/api/transacoes", json={"tipo": "despesa", "valor_centavos": 500, "data_competencia": "2026-09-10",
                                         "conta_id": cc["id"], "estado": "previsto"}).json()
     assert c[0]["estado"] == "previsto"
+
+
+def test_cartao_de_uso_proprio(nova_pessoa):
+    a, b = nova_pessoa("dono"), nova_pessoa("outro")
+    k = a.post("/api/cartoes", json={"nome": "Visa", "bandeira": "visa", "dia_fechamento": 10, "dia_vencimento": 20,
+                                     "final_principal": "1234"}).json()
+    assert k["plasticos"][0]["proprio"] is True  # o principal nasce como uso próprio
+    ad = a.post(f"/api/cartoes/{k['id']}/plasticos", json={"final": "5678", "rotulo": "Virtual", "tipo": "virtual"}).json()
+    assert ad["proprio"] is False
+    r = a.patch(f"/api/plasticos/{ad['id']}", json={"proprio": True})
+    assert r.status_code == 200, r.text
+    assert r.json()["proprio"] is True
+    # marcado como seu: não dá para convidar até desmarcar
+    assert a.post(f"/api/plasticos/{ad['id']}/convites", json={"email": b.email}).status_code == 409
+    assert a.patch(f"/api/plasticos/{ad['id']}", json={"proprio": False}).json()["proprio"] is False
+    assert a.post(f"/api/plasticos/{ad['id']}/convites", json={"email": b.email}).status_code == 201

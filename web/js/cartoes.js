@@ -53,7 +53,7 @@ function linhaPlastico(k, p, recarregar) {
   return h('button', { class: 'linha item', onclick: () => editarPlastico(k, p, recarregar) },
     h('div', { class: 'corpo' }, h('b', null, `·· ${p.final} `, h('small', { class: 'selo' }, p.principal ? 'Plástico · principal' : TIPO[p.tipo]),
         !p.ativo ? h('small', { class: 'selo aviso' }, 'inativo') : null),
-      h('small', null, p.rotulo + (p.portador_nome ? ` · portador: ${p.portador_nome}` : ' · sem portador vinculado'))),
+      h('small', null, p.rotulo + (p.portador_nome ? ` · portador: ${p.portador_nome}` : p.proprio ? ' · uso próprio' : ''))),
     h('span', null, '›'));
 }
 
@@ -235,11 +235,13 @@ function novoPlastico(k, recarregar) {
     const final = h('input', { type: 'text', maxlength: 4, inputmode: 'numeric', placeholder: '5678' });
     const rotulo = h('input', { type: 'text', placeholder: 'Ex.: Maria, compras online' });
     const tipo = h('select', { value: 'plastico' }, h('option', { value: 'plastico' }, 'Plástico'), h('option', { value: 'virtual' }, 'Virtual'));
-    corpo.append(h('p', { class: 'dica' }, 'As compras deste cartão entram na fatura desta conta de cartão. Depois você pode convidar quem o usa.'),
+    const proprio = h('input', { type: 'checkbox', checked: true });
+    corpo.append(h('p', { class: 'dica' }, 'As compras deste cartão entram na fatura desta conta de cartão.'),
       campo('Final (4 dígitos)', final), campo('Identificação', rotulo), campo('Tipo', tipo),
+      h('label', { class: 'marca' }, proprio, ' Sou eu quem usa este cartão (não vou convidar ninguém)'),
       h('button', { class: 'btn', onclick: acao(async () => {
         if (!/^\d{4}$/.test(final.value) || !rotulo.value.trim()) throw new Error('Informe os 4 dígitos e uma identificação.');
-        await POST(`/api/cartoes/${k.id}/plasticos`, { final: final.value, rotulo: rotulo.value.trim(), tipo: tipo.value });
+        await POST(`/api/cartoes/${k.id}/plasticos`, { final: final.value, rotulo: rotulo.value.trim(), tipo: tipo.value, proprio: proprio.checked });
         fechar(); aviso('Cartão adicionado'); recarregar();
       }) }, 'Adicionar'));
   });
@@ -269,7 +271,13 @@ function editarPlastico(k, p, recarregar) {
     corpo.append(p.portador_id
       ? h('div', null, h('p', { class: 'dica' }, `Vinculado a ${p.portador_nome}. Ele vê só o que gastou neste cartão.`),
           h('button', { class: 'btn sec', onclick: acao(async () => { if (await confirmar(`Desvincular ${p.portador_nome} deste cartão?`, 'Desvincular')) { await DEL(`/api/plasticos/${p.id}/portador`); fechar(); recarregar(); } }) }, 'Desvincular portador'))
-      : h('button', { class: 'btn sec', onclick: () => { fechar(); convidarPortador(p, recarregar); } }, 'Convidar portador'));
+      : p.proprio
+        ? h('div', null, h('p', { class: 'dica' }, 'Este cartão é seu: o portador é você mesmo.'),
+            h('button', { class: 'btn sec', onclick: acao(async () => { await PATCH(`/api/plasticos/${p.id}`, { proprio: false }); fechar(); recarregar(); }) }, 'Desmarcar uso próprio'),
+            h('button', { class: 'btn link', onclick: acao(async () => { await PATCH(`/api/plasticos/${p.id}`, { proprio: false }); fechar(); convidarPortador(p, recarregar); }) }, 'Convidar outro portador'))
+        : h('div', null, h('p', { class: 'dica' }, 'Se o cartão é só seu, marque como uso próprio. Se outra pessoa usa, convide-a como portador.'),
+            h('button', { class: 'btn sec', onclick: acao(async () => { await PATCH(`/api/plasticos/${p.id}`, { proprio: true }); fechar(); recarregar(); }) }, 'É meu (uso próprio)'),
+            h('button', { class: 'btn sec', onclick: () => { fechar(); convidarPortador(p, recarregar); } }, 'Convidar portador')));
     if (!p.principal) {
       corpo.append(h('button', { class: 'btn link perigo', onclick: acao(async () => {
         if (!(await confirmar(`Excluir o cartão ·· ${p.final}?`, 'Excluir', true))) return;
