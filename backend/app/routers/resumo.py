@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 
-from ..deps import get_db
+from ..deps import Usuario, get_db, usuario_atual
 from ..servicos import mes_intervalo
 from .contas import SQL_CONTAS
 
@@ -10,16 +10,26 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/saldo-disponivel")
-def saldo_disponivel(ate: date | None = None, cur=Depends(get_db)):
+def saldo_disponivel(ate: date | None = None, visao: str | None = Query(default=None, pattern="^(caixa|competencia)$"),
+                     cur=Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     """Saldo que sobra de verdade: saldo atual menos o que já está comprometido até a data (previstos e faturas de cartão).
-    Sem subdivisões manuais: tudo é calculado a partir dos lançamentos previstos."""
+    Sem subdivisões manuais: tudo é calculado a partir dos lançamentos previstos.
+    visao='caixa' (padrão): conta cada item quando o dinheiro se move (data de caixa; fatura no vencimento).
+    visao='competencia' (prudente): as SAÍDAS entram quando a despesa acontece (competência), mesmo que o dinheiro saia depois;
+    as ENTRADAS continuam só pelo caixa, para nunca mostrar mais dinheiro do que estará na conta. Sem `visao`, vale a do perfil."""
+    if visao is None:
+        cfg = cur.execute("SELECT config FROM usuario WHERE id = %s", (usuario.id,)).fetchone()
+        visao = ((cfg or {}).get("config") or {}).get("visao_disponibilidade")
+        visao = visao if visao in ("caixa", "competencia") else "caixa"
     ate = min(ate, date.today() + timedelta(days=400)) if ate else date.today() + timedelta(days=30)
     contas = cur.execute(SQL_CONTAS + " WHERE NOT c.inativa ORDER BY c.nome").fetchall()
     previstos = cur.execute(
         """SELECT t.conta_id, COALESCE(t.forma_pagamento, 'outro') AS forma,
                   COALESCE(SUM(t.valor_centavos) FILTER (WHERE t.valor_centavos < 0), 0)::bigint AS saidas,
                   COALESCE(SUM(t.valor_centavos) FILTER (WHERE t.valor_centavos > 0), 0)::bigint AS entradas
-           FROM transacao t WHERE t.conta_id IS NOT NULL AND t.estado = 'previsto' AND t.tipo <> 'transferencia' AND t.data_caixa <= %s GROUP BY 1, 2""", (ate,)).fetchall()
+           FROM transacao t WHERE t.conta_id IS NOT NULL AND t.estado = 'previsto' AND t.tipo <> 'transferencia'
+                  AND (t.data_caixa <= %(ate)s OR (%(comp)s AND t.valor_centavos < 0 AND t.data_competencia <= %(ate)s)) GROUP BY 1, 2""",
+        {"ate": ate, "comp": visao == "competencia"}).fetchall()
     # transferências previstas movem o disponível entre contas (a origem reserva o valor, o destino o recebe) sem ser pagar/receber
     transf = {r["conta_id"]: r["v"] for r in cur.execute(
         "SELECT conta_id, SUM(valor_centavos)::bigint AS v FROM transacao WHERE estado = 'previsto' AND tipo = 'transferencia' AND data_caixa <= %s GROUP BY 1", (ate,)).fetchall()}
@@ -27,8 +37,9 @@ def saldo_disponivel(ate: date | None = None, cur=Depends(get_db)):
         """SELECT k.conta_pagamento_id AS conta_id, f.id AS fatura_id, k.nome AS cartao_nome, f.data_vencimento,
                   COALESCE(SUM(t.valor_centavos), 0)::bigint AS total
            FROM fatura f JOIN cartao k ON k.id = f.cartao_id JOIN transacao t ON t.fatura_id = f.id
-           WHERE f.status <> 'paga' AND f.data_vencimento <= %s AND k.conta_pagamento_id IS NOT NULL
-           GROUP BY f.id, k.id ORDER BY f.data_vencimento""", (ate,)).fetchall()
+           WHERE f.status <> 'paga' AND k.conta_pagamento_id IS NOT NULL
+             AND (f.data_vencimento <= %(ate)s OR (%(comp)s AND t.data_competencia <= %(ate)s))
+           GROUP BY f.id, k.id ORDER BY f.data_vencimento""", {"ate": ate, "comp": visao == "competencia"}).fetchall()
     geral = {"saldo_atual": 0, "saidas_previstas": 0, "faturas": 0, "entradas_previstas": 0}
     for c in contas:
         pv = [p for p in previstos if p["conta_id"] == c["id"]]
@@ -47,7 +58,7 @@ def saldo_disponivel(ate: date | None = None, cur=Depends(get_db)):
         geral["entradas_previstas"] += c["entradas_previstas"]
     geral["livre"] = sum(c["livre"] for c in contas)
     geral["projetado"] = geral["livre"] + geral["entradas_previstas"]
-    return {"ate": ate, "contas": contas, "geral": geral}
+    return {"ate": ate, "visao": visao, "contas": contas, "geral": geral}
 
 
 @router.get("/resumo/mensal")

@@ -67,6 +67,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 **Lançamentos**
 - Despesas, receitas e **transferências entre contas** (da corrente para a poupança, para o dinheiro etc.), que não distorcem as receitas e despesas do mês.
 - **Data de competência** (a que mês pertence) e **data de caixa** (quando o dinheiro se move).
+- **Dois jeitos de ver o disponível**: no Início, **Caixa** (cada valor no dia em que o dinheiro se move; a fatura no vencimento) ou **Compromissos** (as despesas contam quando acontecem, mesmo que o dinheiro saia depois; as entradas só pelo caixa). A visão padrão se escolhe em Meu perfil.
 - **Previsto ou efetivado**: planeje pagamentos e recebimentos futuros, confirme quando acontecerem ou volte um lançamento para previsto se confirmou por engano. Compras no cartão não têm essa opção: elas entram na fatura e só saem do saldo quando a fatura é paga (as parcelas futuras ficam previstas automaticamente).
 - **Selecionar vários e excluir**: em Lançamentos, o botão *Selecionar* permite marcar várias linhas (ou todas as do filtro atual) e excluir de uma vez, inclusive o parcelamento inteiro. O que não puder ser excluído é avisado, e o resto é excluído.
 - Nas receitas, o campo que identifica a outra parte aparece como **Pagador** (nas despesas, *Favorecido*).

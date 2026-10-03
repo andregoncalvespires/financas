@@ -245,3 +245,8 @@ details.adicionais[open] > summary { margin-bottom: 6px; }
 
 .marca { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: .92rem; }
 .marca input { width: auto; }
+.chip[aria-pressed="true"] { background: var(--marca); border-color: var(--marca); color: var(--marca-tx); font-weight: 600; opacity: 1; }
+.destaque .chips { margin: 4px 0 8px; }
+.destaque .chip { background: transparent; border-color: rgba(255,255,255,.6); color: var(--marca-tx); }
+.destaque .chip[aria-pressed="true"] { background: #fff; border-color: #fff; color: var(--marca); }
+.destaque .dica { color: rgba(255,255,255,.85); margin: 8px 0 0; font-size: .8rem; }

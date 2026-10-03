@@ -466,10 +466,23 @@ function secaoIa(recarregar) {
       h('p', { class: 'dica' }, 'Atenção: pelos termos do Google, no plano gratuito o conteúdo enviado pode ser usado para melhorar os produtos deles e lido por revisores. Não envie comprovantes com dados sensíveis. No plano pago isso não acontece. Quem paga pela chave é você.'))];
 }
 
+function secaoVisao() {
+  const atual = (estado.eu.config && estado.eu.config.visao_disponibilidade) === 'competencia' ? 'competencia' : 'caixa';
+  const sel = h('select', { value: atual, onchange: acao(async () => {
+    estado.eu = await PATCH('/api/eu', { config: { visao_disponibilidade: sel.value } });
+    aviso('Visão da tela inicial atualizada');
+  }) }, h('option', { value: 'caixa' }, 'Caixa (quando o dinheiro sai)'), h('option', { value: 'competencia' }, 'Compromissos (quando acontece)'));
+  sel.value = atual;
+  return [h('h2', null, 'Disponibilidade no Início'),
+    campo('Visão padrão do quadro de posição', sel),
+    h('p', { class: 'dica' }, 'Caixa: cada valor conta no dia em que o dinheiro se move (a fatura do cartão, no vencimento). Compromissos: as despesas contam quando acontecem, mesmo que o dinheiro saia depois (compra no cartão, cheque, Pix agendado); as entradas continuam só pelo dia em que caem na conta. Você também pode trocar direto na tela inicial.')];
+}
+
 async function perfil(raiz, ctx) {
   const nome = h('input', { type: 'text', value: estado.eu.nome, maxlength: 80 });
   limpar(raiz).append(voltar('Meu perfil'), campo('Nome', nome), campo('E-mail', h('input', { type: 'text', value: estado.eu.email, disabled: true })),
     h('button', { class: 'btn', onclick: acao(async () => { estado.eu = await PATCH('/api/eu', { nome: nome.value.trim() }); aviso('Perfil atualizado'); }) }, 'Salvar'),
+    secaoVisao(),
     secaoIa(() => perfil(raiz, ctx)),
     h('h2', null, 'Seus dados'),
     h('a', { class: 'btn sec', href: '/api/exportar/completo', download: '' }, 'Exportar tudo (planilha + comprovantes)'),

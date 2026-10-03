@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 
+import pytest
+
 from conftest import categoria_por_codigo, conta
 
 HOJE = date.today()
@@ -84,3 +86,40 @@ def test_projetado_e_saldo_mais_entradas_saidas_e_faturas(nova_pessoa):
     assert g["projetado"] == g["saldo_atual"] + g["entradas_previstas"] + g["saidas_previstas"] + g["faturas"]
     assert g["projetado"] == 100000 + 300000 - 25000
     assert g["livre"] == 100000 - 25000                        # `livre` segue sendo o valor sem as entradas
+
+
+def test_visao_competencia_e_prudente(nova_pessoa):
+    """Saídas entram pela competência (mesmo com caixa depois); entradas só pelo caixa; a visão de caixa não muda."""
+    a = nova_pessoa()
+    cc = conta(a, "Corrente", 10000)
+    cat = categoria_por_codigo(a, "2010.05")["id"]
+    d = lambda n: (HOJE + timedelta(days=n)).isoformat()
+    ate = d(1)
+    # saída por competência hoje, caixa só depois da janela
+    lanca(a, valor_centavos=3000, data_competencia=d(0), data_caixa=d(40), conta_id=cc["id"], categoria_id=cat, estado="previsto")
+    # entrada com competência na janela e caixa depois dela: não conta na visão prudente
+    a.post("/api/transacoes", json={"tipo": "receita", "valor_centavos": 7000, "data_competencia": d(1), "data_caixa": d(40), "conta_id": cc["id"], "estado": "previsto"})
+    # entrada normal (competência e caixa na janela)
+    a.post("/api/transacoes", json={"tipo": "receita", "valor_centavos": 5000, "data_competencia": d(1), "data_caixa": d(1), "conta_id": cc["id"], "estado": "previsto"})
+    k = a.post("/api/cartoes", json={"nome": "Visa", "dia_fechamento": 28, "dia_vencimento": 28, "conta_pagamento_id": cc["id"], "final_principal": "1111"}).json()
+    compra = lanca(a, valor_centavos=8000, data_competencia=d(0), plastico_id=k["plasticos"][0]["id"], categoria_id=cat)[0]
+    if compra["data_caixa"] <= ate:
+        pytest.skip("a fatura vence dentro da janela (dia 27 ou 28): o cenário não se aplica")
+
+    cx = a.get(f"/api/saldo-disponivel?ate={ate}&visao=caixa").json()
+    c = cx["contas"][0]
+    assert cx["visao"] == "caixa" and c["saidas_previstas"] == 0 and c["faturas_total"] == 0 and c["entradas_previstas"] == 5000
+    assert c["projetado"] == 15000
+
+    cp = a.get(f"/api/saldo-disponivel?ate={ate}&visao=competencia").json()
+    c = cp["contas"][0]
+    assert cp["visao"] == "competencia" and c["saidas_previstas"] == -3000 and c["faturas_total"] == -8000
+    assert c["entradas_previstas"] == 5000                      # a de 7000 só cai no caixa depois da janela
+    assert c["projetado"] == 10000 - 3000 - 8000 + 5000
+
+    # sem o parâmetro vale a escolha do perfil (padrão: caixa)
+    assert a.get(f"/api/saldo-disponivel?ate={ate}").json()["visao"] == "caixa"
+    a.patch("/api/eu", json={"config": {"visao_disponibilidade": "competencia"}})
+    assert a.get(f"/api/saldo-disponivel?ate={ate}").json()["visao"] == "competencia"
+    assert a.get(f"/api/saldo-disponivel?ate={ate}&visao=caixa").json()["visao"] == "caixa"
+    assert a.get(f"/api/saldo-disponivel?ate={ate}&visao=xx").status_code == 422

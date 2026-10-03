@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.23.0 — 2026-10-03
+- **Disponibilidade por caixa ou por compromissos.** O quadro de posição do Início ganhou o seletor **Caixa | Compromissos**. **Caixa** é como sempre foi: cada valor conta no dia em que o dinheiro se move (fatura no vencimento). **Compromissos** é a visão prudente: as **despesas contam quando acontecem** (competência), mesmo que o dinheiro saia depois, como compras no cartão com fatura a vencer depois do período, cheque e Pix agendado; as **entradas continuam só pelo caixa**, para nunca mostrar mais dinheiro do que estará na conta. A conta Total = Saldo + A receber + A pagar + Faturas segue valendo nas duas.
+- **Visão padrão no perfil.** Em **Meu perfil › Disponibilidade no Início** cada pessoa escolhe com qual visão o Início abre (padrão: Caixa, então nada muda para quem já usa). Trocar no Início vale só até recarregar o app.
+- API: `GET /api/saldo-disponivel` aceita `visao=caixa|competencia` (sem o parâmetro vale a do perfil, guardada em `config.visao_disponibilidade`) e devolve `visao`. Sem migração.
+
 ## 1.22.0 — 2026-10-03
 - **Cartão de uso próprio.** Nem todo cartão tem outra pessoa como portador. Agora cada cartão pode ser marcado como **"É meu (uso próprio)"**, e a tela deixa de mostrar "sem portador vinculado": aparece "uso próprio" ou o nome do portador. Ao adicionar um cartão há a opção "Sou eu quem usa este cartão", marcada por padrão, e o cartão principal de uma conta nova já nasce como uso próprio. Cartões antigos continuam como estavam; basta tocar no cartão e escolher "É meu". Para convidar alguém, desmarque antes. Migração `015` (coluna nova, sem perda de dados).
 

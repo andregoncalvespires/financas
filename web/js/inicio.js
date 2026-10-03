@@ -16,6 +16,7 @@ function fimDoPeriodo(n) {
   const d = new Date(new Date().getFullYear(), new Date().getMonth() + n, 0);   // último dia do mês final
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+let visaoSessao = null;   // escolha feita no quadro (null = a do perfil)
 let geradoMes = null;
 let mesResumo = null;    // mês do quadro "Resumo de ..." (null = mês atual)
 
@@ -32,7 +33,7 @@ export async function inicio(raiz, ctx) {
   const mes = mesISO();
   await gerarRecorrencias();
   try { await POST('/api/investimentos/recalcular'); } catch { /* sem investimentos ou offline: segue */ }   // rendimentos previstos das contas de investimento
-  const [sd, resumo, caps, lem] = await Promise.all([GET(`/api/saldo-disponivel?ate=${ateISO}`), GET(`/api/resumo/mensal?mes=${mesResumo || mes}`), GET('/api/capturas'), GET(`/api/lembretes?ate=${ateISO}`)]);
+  const [sd, resumo, caps, lem] = await Promise.all([GET(`/api/saldo-disponivel?ate=${ateISO}` + (visaoSessao ? `&visao=${visaoSessao}` : '')), GET(`/api/resumo/mensal?mes=${mesResumo || mes}`), GET('/api/capturas'), GET(`/api/lembretes?ate=${ateISO}`)]);
   const contas = sd.contas;
   const soma = (classes, f) => contas.filter(c => classes.includes(c.tipo)).reduce((a, c) => a + f(c), 0);
   const livre = (classes) => soma(classes, c => c.projetado);       // inclui o que ainda vai entrar: assim o Total bate com Saldo + A receber + A pagar + Faturas
@@ -46,12 +47,17 @@ export async function inicio(raiz, ctx) {
         h('div', { class: 'rotulo' }, `Posição até ${dataCurta(sd.ate)}`),
         h('select', { 'aria-label': 'Período', value: String(meses), onchange: (e) => { meses = +e.target.value; try { localStorage.setItem('fin-meses-resumo', String(meses)); } catch { /* sem armazenamento */ } inicio(raiz, ctx); } },
           OPCOES_MESES.map(([n, rot]) => h('option', { value: n }, rot)))),
+      h('div', { class: 'chips', role: 'group', 'aria-label': 'Visão' },
+        [['caixa', 'Caixa'], ['competencia', 'Compromissos']].map(([v, rot]) => h('button', { class: 'chip' + (sd.visao === v ? ' ativo' : ''), 'aria-pressed': String(sd.visao === v),
+          title: v === 'caixa' ? 'Conta cada valor no dia em que o dinheiro se move' : 'Conta as despesas quando acontecem, mesmo que o dinheiro saia depois',
+          onclick: () => { visaoSessao = v; inicio(raiz, ctx); } }, rot))),
       quadroResumo(livre),
       h('div', { class: 'formula' },
         h('span', null, 'Saldo ', h('b', null, brl(total(c => c.saldo_atual)))),
         h('span', null, 'A receber ', h('b', null, brl(total(c => c.entradas_previstas)))),
         h('span', null, 'A pagar ', h('b', null, brl(total(c => c.saidas_previstas)))),
-        h('span', null, 'Faturas ', h('b', null, brl(total(c => c.faturas_total)))))),
+        h('span', null, 'Faturas ', h('b', null, brl(total(c => c.faturas_total))))),
+      sd.visao === 'competencia' ? h('p', { class: 'dica' }, 'Compromissos: despesas contadas quando acontecem, inclusive faturas que vencem depois do período. Entradas só pelo caixa.') : null),
     blocoEventos(lem, () => inicio(raiz, ctx)),
     h('h2', null, 'Contas'),
     contas.length ? contas.map(c => cartaoConta(c, estado.eu.id)) : vazio('Nenhuma conta ainda. Vá em Mais › Contas para criar a primeira.'),

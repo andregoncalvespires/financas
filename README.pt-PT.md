@@ -67,6 +67,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 **Movimentos**
 - Despesas, receitas e **transferências entre contas** (da conta à ordem para a poupança, para o dinheiro, etc.), que não distorcem as receitas e despesas do mês.
 - **Data de competência** (o mês a que pertence) e **data de caixa** (quando o dinheiro se move).
+- **Duas formas de ver o disponível**: no Início, **Caixa** (cada valor no dia em que o dinheiro se move; a fatura no vencimento) ou **Compromissos** (as despesas contam quando acontecem, mesmo que o dinheiro saia depois; as entradas só pelo caixa). A vista predefinida escolhe-se em O meu perfil.
 - **Previsto ou efetivado**: planeie pagamentos e recebimentos futuros, confirme quando acontecerem ou volte a pôr um movimento como previsto se o confirmou por engano. As compras no cartão não têm esta opção: entram na fatura e só saem do saldo quando a fatura é paga (as prestações futuras ficam previstas automaticamente).
 - **Selecionar vários e eliminar**: em Lançamentos, o botão *Selecionar* permite marcar várias linhas (ou todas as do filtro atual) e eliminar de uma vez, incluindo o parcelamento inteiro. O que não puder ser eliminado é assinalado, e o resto é eliminado.
 - Nas receitas, o campo que identifica a outra parte aparece como **Pagador** (nas despesas, *Favorecido*).
