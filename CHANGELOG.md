@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.3 — 2026-10-03
+- **Cartões: mais área útil.** Em cada conta de cartão o cartão **principal** fica como cabeçalho e os **adicionais** ficam num bloco "Adicionais (n)" que abre e fecha (começa fechado), junto do botão de adicionar cartão.
+- **Faturas em ordem crescente de vencimento** (da mais antiga para a mais nova).
+
 ## 1.21.2 — 2026-10-03
 - **Cartões: detalhe da fatura mais fácil de conferir.** Ao abrir uma fatura, as compras agora são agrupadas primeiro por **cartão (final)** e, dentro dele, por **data da compra**, como no extrato do banco, cada nível com o seu subtotal. É possível recolher/expandir a fatura, cada cartão e cada data, e há os atalhos **Expandir tudo**, **Recolher tudo** e **Só cartões**. Só a tela mudou; a API é a mesma.
 

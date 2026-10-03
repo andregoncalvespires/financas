@@ -239,3 +239,6 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .grupo.data { margin-left: 8px; }
 .grupo.cartao > .grupo { margin-left: 8px; }
 .linha-botoes.mini { gap: 4px; flex-wrap: wrap; }
+
+details.adicionais > summary { cursor: pointer; padding: 6px 2px; font-weight: 600; color: var(--suave); }
+details.adicionais[open] > summary { margin-bottom: 6px; }

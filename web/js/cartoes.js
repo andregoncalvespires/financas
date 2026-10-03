@@ -22,6 +22,8 @@ export async function cartoes(raiz, ctx) {
 function cartaoDono(k, recarregar) {
   const corpo = h('div', { class: 'faturas' });
   const ativos = k.plasticos.filter(p => p.ativo).length;
+  const principais = k.plasticos.filter(p => p.principal);
+  const adicionais = k.plasticos.filter(p => !p.principal);
   const semIa = !!(estado.eu.ia && estado.eu.ia.modo === 'nenhum');
   const det = h('details', { class: 'cartao' },
     h('summary', null, h('div', null, h('b', null, k.nome), k.inativo ? h('small', { class: 'selo aviso' }, 'inativa') : null,
@@ -32,8 +34,11 @@ function cartaoDono(k, recarregar) {
       h('button', { class: 'btn sec', disabled: semIa, onclick: () => importarFatura(k, recarregar) }, 'Importar fatura (PDF)')),
     semIa ? h('p', { class: 'dica' }, 'A importação de fatura em PDF precisa da leitura por IA, que não está ativa para você. Peça ao administrador ou cadastre a sua chave em ☰ › Meu perfil.') : null,
     h('h3', null, 'Cartões'),
-    k.plasticos.map(p => linhaPlastico(k, p, recarregar)),
-    h('button', { class: 'btn link', onclick: () => novoPlastico(k, recarregar) }, '+ Adicionar cartão (adicional)'),
+    principais.map(p => linhaPlastico(k, p, recarregar)),
+    h('details', { class: 'adicionais' },
+      h('summary', null, `Adicionais (${adicionais.length})`),
+      adicionais.length ? adicionais.map(p => linhaPlastico(k, p, recarregar)) : h('p', { class: 'dica' }, 'Nenhum cartão adicional.'),
+      h('button', { class: 'btn link', onclick: () => novoPlastico(k, recarregar) }, '+ Adicionar cartão (adicional)')),
     h('h3', null, 'Faturas'), corpo);
   let carregado = false;
   det.addEventListener('toggle', async () => {
@@ -54,7 +59,7 @@ function linhaPlastico(k, p, recarregar) {
 
 // ---------- faturas e itens ----------
 async function listarFaturas(k, corpo, recarregar) {
-  const fats = await GET(`/api/cartoes/${k.id}/faturas`);
+  const fats = (await GET(`/api/cartoes/${k.id}/faturas`)).sort((a, b) => String(a.data_vencimento).localeCompare(String(b.data_vencimento)));
   limpar(corpo);
   if (!fats.length) return corpo.append(vazio('Nenhuma fatura ainda: elas aparecem quando há compras.'));
   for (const f of fats) {
