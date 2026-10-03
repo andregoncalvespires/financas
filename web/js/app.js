@@ -4,14 +4,14 @@ import { inicio } from './inicio.js';
 import { capturar } from './capturar.js';
 import { lancamentos, novo } from './lanc.js';
 import { cartoes } from './cartoes.js';
-import { mais } from './mais.js';
+import { mais, telaInvestimentos } from './mais.js';
 import { orcamento } from './orcamento.js';
 import { VERSAO_APP } from './versao.js';
 
 const app = document.getElementById('app');
 let pedido = 0;
 
-const ABAS = [['inicio', '🏠', 'Início'], ['lancamentos', '🧾', 'Lançamentos'], ['capturar', '📷', 'Capturar'], ['cartoes', '💳', 'Cartões'], ['mais', '☰', 'Mais']];
+const ABAS = [['inicio', '🏠', 'Início'], ['lancamentos', '🧾', 'Lançamentos'], ['capturar', '📷', 'Capturar'], ['cartoes', '💳', 'Cartões'], ['investimentos', '📈', 'Investimentos']];
 
 function nomeDispositivo() {
   const ua = navigator.userAgent;
@@ -68,7 +68,7 @@ function montarCasca() {
     h('nav', { class: 'abas', 'aria-label': 'Principal' }, ABAS.map(([id, ic, rot]) => h('a', { href: `#/${id === 'inicio' ? '' : id}`, 'data-aba': id, class: id === 'capturar' ? 'central' : '' }, h('span', { class: 'ic' }, ic), h('span', null, rot)))));
 }
 
-const ROTAS = { inicio, capturar, lancamentos, novo, cartoes, mais, orcamento };
+const ROTAS = { inicio, capturar, lancamentos, novo, cartoes, mais, orcamento, investimentos: telaInvestimentos };
 
 async function rotear() {
   if (!estado.eu) return;
@@ -86,7 +86,11 @@ async function rotear() {
     if (nome !== 'cartoes' && nome !== 'mais') await carregarCadastros();
     const alvo = h('div');
     await ROTAS[nome](alvo, {}, sub);
-    if (meu === pedido) limpar(tela).append(alvo);
+    if (meu === pedido) {
+      limpar(tela).append(alvo);
+      // atalho para "Mais" no canto superior direito de todas as telas, menos nas do próprio Mais (e no formulário de novo lançamento)
+      if (!['mais', 'orcamento', 'novo'].includes(nome)) tela.append(h('a', { href: '#/mais', class: 'mais-topo', 'aria-label': 'Mais' }, '☰'));
+    }
   } catch (e) {
     if (meu === pedido) limpar(tela).append(h('p', { class: 'erro-form' }, e.message), h('button', { class: 'btn sec', onclick: rotear }, 'Tentar de novo'));
   }

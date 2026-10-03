@@ -50,9 +50,9 @@ def verificar(body: VerificarIn, request: Request, response: Response, bg: Backg
                           (email, email.split("@")[0].replace(".", " ").title(), True)).fetchone()["id"]
         token = gerar_token()
         cur.execute("SELECT auth_criar_dispositivo(%s, %s, %s)", (uid, hash_token(token), body.dispositivo))
-    if not existia and settings.smtp_user:   # avisa o administrador (o e-mail configurado em SMTP_USER) de cada conta nova
+    if not existia and settings.admin_email:   # avisa o administrador (ADMIN_EMAIL) de cada conta nova; sem ADMIN_EMAIL, não envia
         quando = datetime.now().strftime("%d/%m/%Y %H:%M")
-        bg.add_task(mailer.enviar, settings.smtp_user, "Finanças: novo usuário cadastrado",
+        bg.add_task(mailer.enviar, settings.admin_email, "Finanças: novo usuário cadastrado",
                     f"Uma nova conta foi criada no Finanças.\n\nE-mail: {email}\nQuando: {quando}\n")
     response.set_cookie(COOKIE, token, max_age=365 * 24 * 3600, httponly=True, secure=request.url.scheme == "https", samesite="lax", path="/")
     return {"token": token, "email": email}

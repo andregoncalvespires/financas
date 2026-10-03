@@ -139,7 +139,7 @@ function blocoEventos(l, recarregar) {
         mostrarQuando ? h('div', { class: 'quando' }, quando(i)) : null,
         h('div', { class: 'corpo' }, h('b', null, `Vencimento: ${i.conta_nome}`), h('small', null, d < 0 ? `venceu há ${-d} dia(s) · decida o que fazer com o saldo` : d === 0 ? 'vence hoje' : `vence em ${d} dia(s)`)),
         h('b', { class: 'pos' }, brl(i.valor_centavos)),
-        h('a', { class: 'btn mini-btn sec', href: '#/mais/investimentos' }, 'Ver'));
+        h('a', { class: 'btn mini-btn sec', href: '#/investimentos' }, 'Ver'));
     }
     const titulo = fat ? `Fatura ${i.cartao_nome}` : transf ? 'Transferência' : (i.favorecido_nome || i.descricao || i.categoria_nome || 'Previsto');
     const sub = transf ? [i.origem_nome && i.destino_nome ? `${i.origem_nome} → ${i.destino_nome}` : i.conta_nome, i.descricao].filter(Boolean).join(' · ') : fat ? `vence ${dataCurta(i.data)} · ${i.fechada ? 'fechada' : 'ainda aberta'}${i.alem_periodo ? ' · após o período' : ''}` : [i.conta_nome, i.categoria_nome].filter(Boolean).join(' · ');

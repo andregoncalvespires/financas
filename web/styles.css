@@ -25,7 +25,7 @@ b { font-weight: 650; }
 .riscado { text-decoration: line-through; color: var(--suave); }
 
 /* casca */
-.tela { max-width: 640px; margin: 0 auto; padding: 12px 16px calc(96px + env(safe-area-inset-bottom)); }
+.tela { position: relative; max-width: 640px; margin: 0 auto; padding: 12px 16px calc(96px + env(safe-area-inset-bottom)); }
 .abas { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; background: var(--surf); border-top: 1px solid var(--borda);
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); z-index: 10; }
 .abas a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: .68rem; color: var(--suave); text-decoration: none; padding: 4px 0; border-radius: 10px; }
@@ -227,3 +227,6 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .tabela-mini { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .9rem; }
 .tabela-mini th { text-align: left; color: var(--suave); font-weight: 600; } .tabela-mini th:last-child, .tabela-mini td:last-child { text-align: right; }
 .tabela-mini th, .tabela-mini td { padding: 4px 0; border-bottom: 1px solid var(--borda); }
+
+.mais-topo { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; display: grid; place-items: center; font-size: 1.5rem; line-height: 1; color: var(--suave); text-decoration: none; border-radius: 12px; }
+.mais-topo:active { background: var(--borda); }

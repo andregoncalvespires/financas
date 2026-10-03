@@ -60,8 +60,8 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 **Investimentos**
 - Contas de investimento com **subtipo** (poupança, Tesouro Selic, Prefixado e IPCA+, CDB, LCI, LCA, LC, LA, obrigações, CRI/CRA, fundos de rendimento fixo, previdência e rendimento variável), taxa de rendimento, **dia de aniversário** e **data de vencimento**.
 - A aplicação **estima o rendimento** dos próximos meses (cria movimentos previstos de receita no dia de aniversário); quando o extrato chegar, confirma com o valor real e as estimativas seguintes são refeitas. O ecrã mostra o rendimento bruto e o **líquido estimado** (IR regressivo da renda fixa; poupança, LCI e LCA isentas).
-- **Evolução e cenários:** em Mais › Investimentos há um gráfico com o saldo real dos últimos meses e a projeção em três cenários (base, pessimista e otimista, deslocando Selic, CDI e IPCA em 2 pontos), a **alocação por tipo** e um **simulador** de entrada mensal e resgate (sobre uma das suas contas ou sobre uma taxa que indicar).
-- As **premissas** (Selic, CDI, IPCA, TR) são definidas por si em Mais › Investimentos; nada é obtido na internet. Rendimento variável e previdência entram como **valor informado por si**.
+- **Evolução e cenários:** no separador **Investimentos** há um gráfico com o saldo real dos últimos meses e a projeção em três cenários (base, pessimista e otimista, deslocando Selic, CDI e IPCA em 2 pontos), a **alocação por tipo** e um **simulador** de entrada mensal e resgate (sobre uma das suas contas ou sobre uma taxa que indicar).
+- As **premissas** (Selic, CDI, IPCA, TR) são definidas por si no separador Investimentos; nada é obtido na internet. Rendimento variável e previdência entram como **valor informado por si**.
 - **Alerta de vencimento** nos Próximos eventos e **e-mail ao dono da conta** antes de vencer (a antecedência é configurável). Tudo é estimativa para planeamento, não recomendação de investimento.
 
 **Movimentos**
@@ -90,7 +90,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Várias pessoas, com privacidade**
 - Cada pessoa vê apenas os seus próprios dados. Partilha **conta a conta** (ou um cartão) com quem quiser, como leitor, editor ou gestor, e retira o acesso quando quiser.
-- **Aviso de novos registos:** a cada conta nova, o e-mail do administrador (o `SMTP_USER` do `docker-compose.yml`) recebe um aviso.
+- **Aviso de novos registos:** a cada conta nova, o e-mail do administrador (o `ADMIN_EMAIL` do `docker-compose.yml`) recebe um aviso. Sem `ADMIN_EMAIL` preenchido, não é enviado nada.
 - **Área de administração** (opcional): com `ADMIN_EMAIL` preenchido, uma pessoa específica vê a lista de registados, o último acesso e quantas contas e cartões cada um tem. Veja [Configurações opcionais](#configurações-opcionais).
 - Entrada **sem palavra-passe**: chega um código de 6 dígitos por e-mail e o dispositivo fica memorizado. Pode ver e revogar os dispositivos ligados.
 - O isolamento entre pessoas é garantido pela própria base de dados (segurança ao nível da linha do PostgreSQL), e não apenas pelo código da aplicação.

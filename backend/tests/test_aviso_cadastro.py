@@ -1,4 +1,4 @@
-"""O administrador (SMTP_USER) recebe um e-mail a cada conta nova, e só na criação."""
+"""O administrador (ADMIN_EMAIL) recebe um e-mail a cada conta nova, e só na criação."""
 from conftest import cliente
 from app import mailer
 from app.config import settings
@@ -16,7 +16,7 @@ def _avisos(email):
 
 
 def test_avisa_admin_so_na_criacao(app_client, monkeypatch):
-    monkeypatch.setattr(settings, "smtp_user", "admin@exemplo.com", raising=False)
+    monkeypatch.setattr(settings, "admin_email", "admin@exemplo.com", raising=False)
     novo = "novato.aviso@exemplo.com"
     _entrar(app_client, novo)
     avisos = _avisos(novo)
@@ -25,8 +25,8 @@ def test_avisa_admin_so_na_criacao(app_client, monkeypatch):
     assert len(_avisos(novo)) == 1
 
 
-def test_sem_smtp_user_nao_avisa(app_client, monkeypatch):
-    monkeypatch.setattr(settings, "smtp_user", "", raising=False)
+def test_sem_admin_email_nao_avisa(app_client, monkeypatch):
+    monkeypatch.setattr(settings, "admin_email", "", raising=False)
     antes = len(mailer.caixa_saida)
     _entrar(app_client, "sem.aviso@exemplo.com")
     assert not [m for m in mailer.caixa_saida[antes:] if "novo usuário" in m["assunto"].lower()]

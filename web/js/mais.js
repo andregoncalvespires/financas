@@ -3,8 +3,8 @@ import { estado, carregarCadastros, destinos } from './form.js';
 import { VERSAO_APP } from './versao.js';
 
 const voltar = h_voltar;
-function h_voltar(titulo) {
-  return h('div', { class: 'topo-sub' }, h('a', { href: '#/mais', class: 'icone', 'aria-label': 'Voltar' }, '‹'), h('h1', null, titulo));
+function h_voltar(titulo, destino = '#/mais') {
+  return h('div', { class: 'topo-sub' }, h('a', { href: destino, class: 'icone', 'aria-label': 'Voltar' }, '‹'), h('h1', null, titulo));
 }
 
 export async function mais(raiz, ctx, sub) {
@@ -13,13 +13,11 @@ export async function mais(raiz, ctx, sub) {
   let n = 0;
   try { const c = await GET('/api/convites'); n = c.recebidos.length; } catch { /* ignora */ }
   try { await carregarCadastros(); } catch { /* usa o que já tem */ }
-  const temInvest = (estado.contas || []).some(c => c.tipo === 'investimento' && !c.inativa);
   const item = (href, rotulo, extra) => h('a', { class: 'linha item', href }, h('div', { class: 'corpo' }, h('b', null, rotulo)), extra || h('span', null, '›'));
   limpar(raiz).append(h('h1', null, 'Mais'),
     h('div', { class: 'lista' },
       item('#/mais/convites', 'Convites', n ? h('span', { class: 'selo aviso' }, `${n} novo(s)`) : null),
       item('#/mais/contas', 'Contas e compartilhamento'),
-      temInvest ? item('#/mais/investimentos', 'Investimentos') : null,
       item('#/mais/tiposConta', 'Tipos de conta'),
       item('#/orcamento', 'Orçamento'),
       item('#/mais/categorias', 'Categorias'),
@@ -645,11 +643,11 @@ async function investimentos(raiz, ctx) {
     try { const nos = await painelInvestimentos(hz, montarPainel); limpar(blocoPainel).append(nos); } catch { limpar(blocoPainel); }
   };
   montarPainel(horizonte);
-  limpar(raiz).append(voltar('Investimentos'),
-    h('p', { class: 'dica' }, 'Estimativas para planejamento. O rendimento previsto aparece nos Próximos eventos; confirme com o valor real do extrato quando ele cair.'),
+  limpar(raiz).append(h('h1', null, 'Investimentos'),
+    r.investimentos.length ? h('p', { class: 'dica' }, 'Estimativas para planejamento. O rendimento previsto aparece nos Próximos eventos; confirme com o valor real do extrato quando ele cair.') : null,
     blocoPainel,
-    h('a', { class: 'linha item', href: '#/mais/premissas' }, h('div', { class: 'corpo' }, h('b', null, 'Premissas'),
-      h('small', { class: 'bloco' }, `CDI ${pct(r.premissas.cdi)}% · Selic ${pct(r.premissas.selic)}% · IPCA ${pct(r.premissas.ipca)}% ao ano`)), h('span', null, '›')),
+    r.investimentos.length ? h('a', { class: 'linha item', href: '#/investimentos/premissas' }, h('div', { class: 'corpo' }, h('b', null, 'Premissas'),
+      h('small', { class: 'bloco' }, `CDI ${pct(r.premissas.cdi)}% · Selic ${pct(r.premissas.selic)}% · IPCA ${pct(r.premissas.ipca)}% ao ano`)), h('span', null, '›')) : null,
     r.investimentos.length ? r.investimentos.map(i => {
       const conta = estado.contas.find(c => c.id === i.id);
       const dono = i.dono_id === estado.eu.id;
@@ -668,7 +666,7 @@ async function investimentos(raiz, ctx) {
         dono ? h('div', { class: 'linha-botoes' },
           i.manual ? h('button', { class: 'btn sec', onclick: () => atualizarValor(i, recarregar) }, 'Atualizar valor') : null,
           h('button', { class: 'btn sec', onclick: () => conta && detalheConta(conta, recarregar) }, 'Configurar')) : null);
-    }) : vazio('Nenhuma conta de investimento. Crie uma em Mais › Contas, escolhendo o tipo Investimento.'));
+    }) : vazio('Nenhuma conta de investimento. Para criar uma, toque em ☰ › Contas e escolha o tipo Investimento.'));
 }
 
 function atualizarValor(i, recarregar) {
@@ -685,11 +683,15 @@ function atualizarValor(i, recarregar) {
   });
 }
 
+export async function telaInvestimentos(raiz, ctx, sub) {
+  return sub === 'premissas' ? premissas(raiz, ctx) : investimentos(raiz, ctx);
+}
+
 async function premissas(raiz, ctx) {
   const p = await GET('/api/premissas');
   const campoPct = (v) => h('input', { type: 'text', inputmode: 'decimal', value: pct(v) });
   const selic = campoPct(p.selic), cdi = campoPct(p.cdi), ipca = campoPct(p.ipca), tr = campoPct(p.tr);
-  limpar(raiz).append(voltar('Premissas'),
+  limpar(raiz).append(voltar('Premissas', '#/investimentos'),
     p.personalizadas ? null : h('p', { class: 'selo aviso' }, 'Valores iniciais de exemplo: ajuste para o que você espera'),
     h('p', { class: 'dica' }, 'Taxas anuais esperadas, usadas para estimar o rendimento dos próximos meses. Não são lidas de nenhum site: você as define e atualiza quando quiser. Ao salvar, os rendimentos previstos são recalculados.'),
     campo('Selic (% ao ano)', selic), campo('CDI (% ao ano)', cdi), campo('IPCA (% ao ano)', ipca), campo('TR (% ao ano)', tr, 'Usada só na poupança.'),

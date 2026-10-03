@@ -60,8 +60,8 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 **Investimentos**
 - Contas de investimento com **subtipo** (poupança, Tesouro Selic, Prefixado e IPCA+, CDB, LCI, LCA, LC, LA, debêntures, CRI/CRA, fundos de renda fixa, previdência e renda variável), taxa de rendimento, **dia de aniversário** e **data de vencimento**.
 - O app **estima o rendimento** dos próximos meses (cria lançamentos previstos de receita no dia de aniversário); quando o extrato chegar, você confirma com o valor real e as estimativas seguintes são refeitas. A tela mostra o rendimento bruto e o **líquido estimado** (IR regressivo da renda fixa; poupança, LCI e LCA isentas).
-- **Evolução e cenários:** em Mais › Investimentos há um gráfico com o saldo real dos últimos meses e a projeção em três cenários (base, pessimista e otimista, deslocando Selic, CDI e IPCA em 2 pontos), a **alocação por tipo** e um **simulador** de aporte mensal e resgate (sobre uma das suas contas ou sobre uma taxa que você informa).
-- **Premissas** (Selic, CDI, IPCA, TR) são definidas por você em Mais › Investimentos; nada é buscado na internet. Renda variável e previdência entram como **valor informado por você**.
+- **Evolução e cenários:** na aba **Investimentos** há um gráfico com o saldo real dos últimos meses e a projeção em três cenários (base, pessimista e otimista, deslocando Selic, CDI e IPCA em 2 pontos), a **alocação por tipo** e um **simulador** de aporte mensal e resgate (sobre uma das suas contas ou sobre uma taxa que você informa).
+- **Premissas** (Selic, CDI, IPCA, TR) são definidas por você na aba Investimentos; nada é buscado na internet. Renda variável e previdência entram como **valor informado por você**.
 - **Alerta de vencimento** nos Próximos eventos e **e-mail ao dono da conta** antes de vencer (a antecedência é configurável). Tudo é estimativa para planejamento, não recomendação de investimento.
 
 **Lançamentos**
@@ -90,7 +90,7 @@ Se algo não funcionar, veja [Problemas comuns](#problemas-comuns).
 
 **Várias pessoas, com privacidade**
 - Cada pessoa vê apenas os próprios dados. Você compartilha **conta por conta** (ou um cartão) com quem quiser, como leitor, editor ou gestor, e retira o acesso quando quiser.
-- **Aviso de novos cadastros:** a cada conta nova, o e-mail do administrador (o `SMTP_USER` do `docker-compose.yml`) recebe um aviso.
+- **Aviso de novos cadastros:** a cada conta nova, o e-mail do administrador (o `ADMIN_EMAIL` do `docker-compose.yml`) recebe um aviso. Sem `ADMIN_EMAIL` preenchido, nada é enviado.
 - **Área de administração** (opcional): com `ADMIN_EMAIL` preenchido, uma pessoa específica vê a lista de cadastrados, o último acesso e quantas contas e cartões cada um tem. Veja [Configurações opcionais](#configurações-opcionais).
 - Entrada **sem senha**: um código de 6 dígitos chega por e-mail e o aparelho fica lembrado. Você vê e revoga os aparelhos conectados.
 - O isolamento entre pessoas é garantido pelo próprio banco de dados (segurança por linha do PostgreSQL), não só pelo código do aplicativo.

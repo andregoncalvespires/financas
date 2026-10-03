@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.19.0 — 2026-10-03
+- **Nova barra de navegação.** **Investimentos** ganhou uma aba própria na barra de baixo (Início, Lançamentos, Capturar, Cartões e Investimentos). Quem ainda não tem conta de investimento vê a tela vazia, com a orientação de como criar uma. O atalho para **Mais** virou um ícone ☰ no canto superior direito de todas as telas (menos nas do próprio Mais e no formulário de novo lançamento). As Premissas passam a ficar em Investimentos › Premissas.
+- **Aviso de novo cadastro vai para o `ADMIN_EMAIL`.** O e-mail de aviso a cada conta nova deixa de ir para o `SMTP_USER` e passa a ir para o e-mail do administrador (`ADMIN_EMAIL`). Com `ADMIN_EMAIL` vazio, nada é enviado.
+
 ## 1.18.0 — 2026-10-03
 - **Tela de Investimentos com evolução, cenários e simulador.** Em **Mais › Investimentos** aparece o **Patrimônio investido** com um gráfico: linha cinza com o saldo real dos últimos 12 meses e a **projeção** (12 meses, 2, 5 ou 10 anos) em três cenários, **base** e **pessimista/otimista**, que deslocam Selic, CDI e IPCA em 2 pontos percentuais. A tabela mostra o saldo projetado bruto e o **líquido de IR estimado** no cenário base. Há também a **alocação por tipo** de investimento e o **simulador**: aporte hoje, aporte mensal, resgate único e prazo, sobre uma das suas contas ou sobre uma taxa anual informada, comparando com "não mudar nada". Tudo é estimativa a partir das suas premissas, não recomendação de investimento. Novas rotas: `GET /api/investimentos/painel` e `POST /api/investimentos/simular`.
 
